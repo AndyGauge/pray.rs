@@ -1,0 +1,31 @@
+[Unit]
+Description=Thanksgivings (pray.rs)
+After=network.target
+
+[Service]
+Type=simple
+User=thanksgivings
+WorkingDirectory=/opt/thanksgivings
+ExecStart=/opt/thanksgivings/thanksgivings
+Restart=on-failure
+RestartSec=5
+
+# Environment — edit these before deploying
+Environment=DATABASE_URL=sqlite:///opt/thanksgivings/data/thanksgivings.db
+Environment=BASE_URL=https://pray.rs
+Environment=LEPTOS_OUTPUT_NAME=thanksgivings
+Environment=LEPTOS_SITE_ROOT=/opt/thanksgivings/site
+Environment=LEPTOS_SITE_ADDR=127.0.0.1:3000
+Environment=GOOGLE_CLIENT_ID=
+Environment=GOOGLE_CLIENT_SECRET=
+Environment=FACEBOOK_CLIENT_ID=
+Environment=FACEBOOK_CLIENT_SECRET=
+
+# Harden the process
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/opt/thanksgivings/data
+
+[Install]
+WantedBy=multi-user.target

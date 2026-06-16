@@ -1,0 +1,15 @@
+[package]
+name    = "thanksgivings-db"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+thanksgivings-core = { workspace = true }
+sqlx      = { workspace = true }
+uuid      = { workspace = true }
+serde     = { workspace = true }
+serde_json = { workspace = true }
+time      = { workspace = true }
+thiserror = { workspace = true }
+tokio     = { workspace = true }
+sha2      = { workspace = true }

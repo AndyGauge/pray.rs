@@ -1,0 +1,72 @@
+[package]
+name    = "app"
+version.workspace = true
+edition.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[[bin]]
+name             = "app"
+path             = "src/main.rs"
+required-features = ["ssr"]
+
+[features]
+default  = []
+hydrate  = ["leptos/hydrate", "leptosbook/hydrate"]
+ssr = [
+    "leptosbook/ssr",
+    "leptos/ssr",
+    "leptos_axum/default",
+    "leptos_meta/ssr",
+    "leptos_router/ssr",
+    "dep:axum",
+    "dep:tokio",
+    "dep:tower",
+    "dep:tower-http",
+    "dep:sqlx",
+    "dep:reqwest",
+    "dep:oauth2",
+    "dep:tower-sessions",
+    "dep:tower-sessions-sqlx-store",
+    "dep:thanksgivings-db",
+    "dep:dotenvy",
+    "dep:mcp-authorization",
+    "dep:sha2",
+    "dep:base64",
+    "dep:qrcode",
+]
+
+[dependencies]
+thanksgivings-core = { workspace = true }
+leptosbook      = { workspace = true }
+leptos       = { workspace = true }
+leptos_meta  = { workspace = true }
+leptos_router = { workspace = true }
+serde        = { workspace = true }
+serde_json   = { workspace = true }
+uuid         = { workspace = true }
+time         = { workspace = true }
+thiserror    = { workspace = true }
+wasm-bindgen = { workspace = true, optional = false }
+web-sys      = { workspace = true }
+js-sys       = { workspace = true }
+
+# SSR-only deps (gated by feature)
+thanksgivings-db            = { workspace = true, optional = true }
+leptos_axum                 = { workspace = true, optional = true }
+axum                        = { workspace = true, optional = true }
+tokio                       = { workspace = true, optional = true }
+tower                       = { workspace = true, optional = true }
+tower-http                  = { workspace = true, optional = true }
+sqlx                        = { workspace = true, optional = true }
+oauth2                      = { workspace = true, optional = true }
+reqwest                     = { workspace = true, optional = true }
+tower-sessions              = { workspace = true, optional = true }
+tower-sessions-sqlx-store   = { workspace = true, optional = true }
+dotenvy                     = { workspace = true, optional = true }
+mcp-authorization           = { workspace = true, optional = true }
+sha2                        = { workspace = true, optional = true }
+base64                      = { workspace = true, optional = true }
+qrcode                      = { workspace = true, optional = true }
+urlencoding                 = { workspace = true }

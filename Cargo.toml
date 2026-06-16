@@ -1,0 +1,84 @@
+[workspace]
+members = [
+    "crates/core",
+    "crates/db",
+    "crates/app",
+    "crates/project-mcp",
+]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+authors = ["andygauge@gmail.com"]
+
+[workspace.dependencies]
+thanksgivings-core = { path = "crates/core" }
+thanksgivings-db   = { path = "crates/db" }
+leptosbook      = { path = "../leptosbook" }
+
+# Fundamentals
+uuid       = { version = "1",   features = ["v4", "serde", "js"] }
+web-sys    = { version = "0.3", features = ["MouseEvent", "TouchEvent", "TouchList", "Touch", "Window", "Location", "CustomEvent", "EventTarget", "SubmitEvent", "KeyboardEvent", "WheelEvent", "Navigator", "MediaQueryList", "Storage", "Clipboard", "HtmlInputElement"] }
+js-sys     = "0.3"
+serde      = { version = "1",   features = ["derive"] }
+serde_json = "1"
+time       = { version = "0.3", features = ["serde", "formatting", "parsing"] }
+thiserror  = "2"
+anyhow     = "1"
+dotenvy    = "0.15"
+
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+
+# Web / Leptos
+leptos       = { version = "0.9.0-alpha", features = [] }
+leptos_axum  = { version = "0.9.0-alpha" }
+leptos_meta  = { version = "0.9.0-alpha" }
+leptos_router = { version = "0.9.0-alpha" }
+axum         = { version = "0.8", features = ["macros"] }
+tower        = "0.5"
+tower-http   = { version = "0.6", features = ["fs", "compression-gzip"] }
+
+# Database
+sqlx = { version = "0.8", features = ["sqlite", "runtime-tokio-rustls", "migrate", "uuid", "time"] }
+
+# Auth
+oauth2  = "4"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+
+# Sessions
+tower-sessions            = "0.14"
+tower-sessions-sqlx-store = { version = "0.15", features = ["sqlite"] }
+
+# WASM
+wasm-bindgen = "0.2"
+
+# MCP authorization
+mcp-authorization        = "0.2"
+mcp-authorization-macros = "0.1"
+
+# Crypto
+sha2 = "0.10"
+base64 = "0.22"
+
+# QR codes
+qrcode = { version = "0.14", default-features = false }
+
+# Email / util
+urlencoding  = "2"
+
+[[workspace.metadata.leptos]]
+name           = "thanksgivings"
+bin-package    = "app"
+lib-package    = "app"
+output-name    = "thanksgivings"
+site-root      = "target/site"
+site-pkg-dir   = "pkg"
+style-file     = "crates/app/style/book.css"
+assets-dir     = "crates/app/public"
+site-addr      = "127.0.0.1:3000"
+reload-port    = 3001
+env            = "DEV"
+bin-features   = ["ssr"]
+lib-features   = ["hydrate"]

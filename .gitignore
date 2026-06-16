@@ -1,0 +1,20 @@
+/target
+.env
+*.db
+*.db-shm
+*.db-wal
+node_modules
+
+# Secrets
+.root_key
+
+# Claude Code runtime data
+.workspace/
+.claude/settings.local.json
+
+# Build artifacts in deploy/
+deploy/site/
+deploy/thanksgivings
+
+# macOS
+.DS_Store

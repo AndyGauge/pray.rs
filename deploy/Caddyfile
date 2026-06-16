@@ -1,0 +1,11 @@
+pray.rs {
+    # Reverse-proxy everything to the Axum server
+    reverse_proxy 127.0.0.1:3000
+
+    # Aggressive caching for immutable WASM/JS assets
+    @immutable path /pkg/*
+    header @immutable Cache-Control "public, max-age=31536000, immutable"
+
+    # Compress text assets
+    encode gzip
+}

@@ -1,0 +1,16 @@
+[package]
+name    = "project-mcp"
+version.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "project-mcp"
+path = "src/main.rs"
+
+[dependencies]
+serde      = { workspace = true }
+serde_json = { workspace = true }
+thiserror  = { workspace = true }
+anyhow     = { workspace = true }
+time       = { workspace = true }
+tokio      = { workspace = true }

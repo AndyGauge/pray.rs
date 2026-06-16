@@ -1,0 +1,17 @@
+{
+  "name": "prayers",
+  "short_name": "prayers",
+  "description": "A prayer book for the digital age",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#1a0f08",
+  "theme_color": "#1a0f08",
+  "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "any",
+      "type": "image/png"
+    }
+  ]
+}
