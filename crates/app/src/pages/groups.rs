@@ -79,7 +79,7 @@ pub async fn send_invite(group_id: String, contact: String) -> Result<String, Se
         }
         ContactType::Phone => {
             let msg = format!(
-                "{} invited you to join their prayer group on Thanksgivings: {}",
+                "{} has invited you to share prayers on pray.rs: {}",
                 inviter.display_name, invite_url
             );
             Ok(format!("sms:{contact}?body={}", urlencoding::encode(&msg)))

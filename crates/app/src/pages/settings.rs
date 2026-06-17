@@ -105,6 +105,33 @@ fn SetupInstructions(
 fn ClaudeCodeInstructions(os: ReadSignal<usize>, set_os: WriteSignal<usize>) -> impl IntoView {
     view! {
         <div>
+            // ── OAuth sign-in (recommended) ───────────────────────────
+            <div class="setup-steps">
+                <p class="post-meta">
+                    "Recommended — sign in with your pray.rs account. No API key to manage."
+                </p>
+                <p class="post-meta" style="margin-top:0.75rem">"1. Add the MCP server:"</p>
+                <code class="api-key-value" style="white-space:pre-wrap">
+                    "claude mcp add --transport http prayers https://pray.rs/mcp"
+                </code>
+                <p class="post-meta" style="margin-top:0.75rem">
+                    "2. In Claude Code, run " <code class="api-key-inline">"/mcp"</code>
+                    ", select " <strong>"prayers"</strong> ", and choose "
+                    <strong>"Authenticate"</strong>
+                    ". A browser opens to sign in with Google or Facebook."
+                </p>
+                <p class="post-meta" style="margin-top:0.75rem">
+                    "Added it without signing in? You'll only see public prayers. Run "
+                    <code class="api-key-inline">"/mcp"</code> " → " <strong>"prayers"</strong>
+                    " → " <strong>"Reauthenticate"</strong>
+                    " to switch from public prayers to your own account."
+                </p>
+            </div>
+
+            // ── API key (alternative) ─────────────────────────────────
+            <p class="post-meta" style="margin-top:1.5rem;font-weight:600">
+                "Or connect with a static API key"
+            </p>
             <div class="setup-tabs" style="margin-top:0.5rem">
                 <button
                     class=move || if os.get() == 0 { "setup-tab setup-tab--active" } else { "setup-tab" }
@@ -371,6 +398,16 @@ pub fn SettingsPage() -> impl IntoView {
 
                 // ── How it works ──────────────────────────────────────────
                 <SetupInstructions client=client set_client=set_client os=os set_os=set_os/>
+
+                // ── Legal ─────────────────────────────────────────────────
+                <div class="settings-section">
+                    <h2 class="settings-heading">"Legal"</h2>
+                    <nav class="settings-links">
+                        <A href="/privacy"  attr:class="settings-link">"Privacy Policy"</A>
+                        <A href="/terms"    attr:class="settings-link">"Terms of Service"</A>
+                        <A href="/deletion" attr:class="settings-link">"Delete my data"</A>
+                    </nav>
+                </div>
 
             </div>
         </div>

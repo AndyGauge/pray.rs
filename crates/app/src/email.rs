@@ -11,12 +11,17 @@ pub mod mailer {
         let api_key = std::env::var("RESEND_API_KEY")
             .map_err(|_| "RESEND_API_KEY not set".to_string())?;
         let from = std::env::var("RESEND_FROM")
-            .unwrap_or_else(|_| "Thanksgivings <noreply@pray.rs>".to_string());
+            .unwrap_or_else(|_| "pray.rs <noreply@pray.rs>".to_string());
+
+        // Brand wordmark: "pray" + a small raised "e" standing in for the dot
+        // in pray.rs, reading as "prayers" — mirrors the in-app <Wordmark/>.
+        let brand = r#"pray<sup style="font-size:0.5em;vertical-align:0.4em;line-height:0">e</sup>rs"#;
 
         let html = format!(
             r#"<div style="font-family:Georgia,serif;max-width:520px;margin:0 auto;color:#2c1810">
-                <h2 style="color:#8b4513">{invited_by_name} invited you to join<br><em>{group_name}</em></h2>
-                <p>Thanksgivings is a quiet prayer book — a place to write prayers and praises,
+                <h2 style="color:#8b4513">{invited_by_name} has invited you to<br>share prayers on {brand}</h2>
+                <p style="color:#9e8a7a">You'll join their group, <strong>{group_name}</strong>.</p>
+                <p>{brand} is a quiet prayer book — a place to write prayers and praises,
                    away from the noise of social media.</p>
                 <p style="margin:2rem 0">
                   <a href="{invite_url}"
@@ -40,7 +45,7 @@ pub mod mailer {
         let body = json!({
             "from":    from,
             "to":      [to_email],
-            "subject": format!("{invited_by_name} invited you to a prayer group"),
+            "subject": format!("{invited_by_name} has invited you to share prayers on pray.rs"),
             "html":    html,
         });
 

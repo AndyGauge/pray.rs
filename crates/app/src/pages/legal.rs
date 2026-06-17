@@ -33,7 +33,7 @@ pub fn PrivacyPage() -> impl IntoView {
 
                 <h2>"What this app is"</h2>
                 <p>
-                    "Thanksgivings (pray.rs) is a personal prayer book.
+                    "pray.rs is a personal prayer book.
                     You write prayers and praises; the app keeps them for you."
                 </p>
 
@@ -70,7 +70,7 @@ pub fn PrivacyPage() -> impl IntoView {
                 </p>
                 <p>
                     "To revoke our access to your Facebook account, go to
-                    Facebook → Settings → Apps and Websites and remove Thanksgivings."
+                    Facebook → Settings → Apps and Websites and remove pray.rs."
                 </p>
 
                 <h2>"Data deletion"</h2>
@@ -113,13 +113,13 @@ pub fn TermsPage() -> impl IntoView {
 
                 <h2>"Acceptance"</h2>
                 <p>
-                    "By using Thanksgivings at pray.rs you agree to these terms. If you do not
+                    "By using pray.rs you agree to these terms. If you do not
                     agree, please do not use the app."
                 </p>
 
                 <h2>"What the app is"</h2>
                 <p>
-                    "Thanksgivings is a personal prayer journal. It is offered free of charge
+                    "pray.rs is a personal prayer journal. It is offered free of charge
                     as an alternative to social media — a quiet place for prayer and reflection,
                     not performance."
                 </p>
@@ -268,7 +268,7 @@ pub fn DeletionPage() -> impl IntoView {
                     <ol>
                         <li>"Go to Facebook → Settings → Security and Login."</li>
                         <li>"Scroll to \"Apps and Websites\" and click \"See more\"."</li>
-                        <li>"Find Thanksgivings and click Remove."</li>
+                        <li>"Find pray.rs and click Remove."</li>
                     </ol>
                     <p>
                         "Revoking Facebook access signs you out but does not delete your prayers.

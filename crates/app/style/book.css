@@ -114,12 +114,16 @@ html, body {
 
 .page-content {
   flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  /* `safe` keeps content centered when it fits, but falls back to the
+     start (instead of clipping the top) once it's taller than the view,
+     so long pages like group detail can scroll. */
+  justify-content: safe center;
   align-items: center;
   padding: 3rem 4rem;
-  overflow: hidden;
+  overflow-y: auto;
 }
 
 .post-card {
@@ -466,6 +470,17 @@ html, body {
 }
 .group-name-input:focus { outline: none; border-color: var(--accent); }
 
+.group-create form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.group-create .compose-btn {
+  width: 100%;
+  padding: 0.7rem 1.1rem;
+}
+
 .invite-form {
   display: flex;
   flex-direction: column;
@@ -708,6 +723,20 @@ html, body {
   color: var(--accent);
   margin-bottom: 0.5rem;
 }
+
+.settings-links {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.settings-link {
+  color: var(--accent);
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+.settings-link:hover { text-decoration: underline; }
 
 .api-key-new {
   background: #2c1810;
