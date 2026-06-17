@@ -1,0 +1,5 @@
+# /etc/cron.d/thanksgivings-backup — daily SQLite backup at 03:30 UTC.
+# Runs deploy/backup.sh (installed at /opt/thanksgivings/backup.sh).
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+30 3 * * * root /opt/thanksgivings/backup.sh >> /var/log/thanksgivings-backup.log 2>&1
