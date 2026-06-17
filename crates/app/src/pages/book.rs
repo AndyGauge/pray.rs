@@ -1,9 +1,10 @@
 use leptos::prelude::*;
 use leptosbook::prelude::*;
 use leptos_router::hooks::use_navigate;
-use thanksgivings_core::{Post, VisibilityFilter};
+use thanksgivings_core::{Group, Post, VisibilityFilter};
 
 use crate::components::{copyright::CopyrightNotice, post_page::PostPage, visibility_picker::VisibilityPicker, wordmark::Wordmark};
+use crate::pages::groups::fetch_my_groups;
 
 #[server]
 pub async fn fetch_posts(filter: VisibilityFilter) -> Result<Vec<Post>, ServerFnError> {
@@ -29,12 +30,54 @@ pub async fn fetch_posts(filter: VisibilityFilter) -> Result<Vec<Post>, ServerFn
     }
 }
 
+/// Share one of the caller's own prayers to a group they belong to, making it
+/// visible to other group members. Mirrors the MCP `share_to_group` tool.
+#[server]
+pub async fn share_prayer_to_group(post_id: String, group_id: String) -> Result<(), ServerFnError> {
+    use crate::server::AppState;
+    use thanksgivings_core::{GroupId, UserId};
+    use tower_sessions::Session;
+
+    let state = use_context::<AppState>()
+        .ok_or_else(|| ServerFnError::new("missing app state"))?;
+    let session = leptos_axum::extract::<Session>().await
+        .map_err(|e| ServerFnError::new(e.to_string()))?;
+    let uid: UserId = session.get("user_id").await.ok().flatten()
+        .ok_or_else(|| ServerFnError::new("not authenticated"))?;
+
+    let gid: GroupId = group_id.parse()
+        .map_err(|_| ServerFnError::new("invalid group"))?;
+
+    // Only members of the target group may share into it.
+    let groups = thanksgivings_db::repository::groups::list_for_user(&state.db.pool, uid)
+        .await.map_err(|e| ServerFnError::new(e.to_string()))?;
+    if !groups.iter().any(|g| g.id == gid) {
+        return Err(ServerFnError::new("You are not a member of that group."));
+    }
+
+    // set_visibility enforces author ownership at the DB level.
+    let shared = thanksgivings_db::repository::posts::set_visibility(
+        &state.db.pool, &post_id, uid, &group_id,
+    ).await.map_err(|e| ServerFnError::new(e.to_string()))?;
+
+    if shared { Ok(()) } else { Err(ServerFnError::new("Prayer not found or not yours.")) }
+}
+
 #[component]
 pub fn BookPage() -> impl IntoView {
     let (tab_index, set_tab_index) = signal(0usize);
     let (filter, set_filter)       = signal(VisibilityFilter::Mine);
 
-    let posts = LocalResource::new(move || fetch_posts(filter.get()));
+    let posts  = LocalResource::new(move || fetch_posts(filter.get()));
+    let groups = LocalResource::new(fetch_my_groups);
+
+    // The viewer's groups, available to each prayer's share control.
+    let groups_sig: Signal<Vec<Group>> = Signal::derive(move || {
+        groups.get().and_then(|r| r.ok()).unwrap_or_default()
+    });
+    // Prayers are only the viewer's own on the "Mine" tab, so only offer
+    // sharing there.
+    let can_share = Signal::derive(move || filter.get() == VisibilityFilter::Mine);
 
     let navigate = use_navigate();
 
@@ -78,6 +121,7 @@ pub fn BookPage() -> impl IntoView {
                 <Wordmark/>
                 <VisibilityPicker
                     value=filter
+                    groups=groups_sig
                     on_change=move |v| set_filter.set(v)
                 />
             </header>
@@ -85,7 +129,9 @@ pub fn BookPage() -> impl IntoView {
             // ── leptoskit takes over everything below ──────────────────
             <Folio
                 items=items
-                render=|post: Post| view! { <PostPage post=post/> }
+                render=move |post: Post| view! {
+                    <PostPage post=post groups=groups_sig can_share=can_share/>
+                }
                 threshold=60.0
                 empty_fallback=empty_fb
             >

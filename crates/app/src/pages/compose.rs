@@ -1,6 +1,8 @@
 use leptos::prelude::*;
 use leptos_router::hooks::use_navigate;
-use thanksgivings_core::{NewPost, PostKind, Visibility};
+use thanksgivings_core::{Group, NewPost, PostKind, Visibility};
+
+use crate::pages::groups::fetch_my_groups;
 
 #[server]
 pub async fn create_post(new_post: NewPost) -> Result<(), ServerFnError> {
@@ -29,6 +31,11 @@ pub fn ComposePage() -> impl IntoView {
     let (content, set_content) = signal(String::new());
     let (vis, set_vis)         = signal(Visibility::Private);
     let (error, set_error)     = signal(Option::<String>::None);
+
+    let groups = LocalResource::new(fetch_my_groups);
+    let groups_sig: Signal<Vec<Group>> = Signal::derive(move || {
+        groups.get().and_then(|r| r.ok()).unwrap_or_default()
+    });
 
     let navigate = use_navigate();
     let nav2     = navigate.clone();
@@ -97,15 +104,60 @@ pub fn ComposePage() -> impl IntoView {
                     // Visibility
                     <div class="form-field">
                         <label>"Who can see this"</label>
-                        <div class="kind-picker">
-                            <button type="button"
-                                class=move || if vis.get() == Visibility::Private { "kind-btn active" } else { "kind-btn" }
-                                on:click=move |_| set_vis.set(Visibility::Private)
-                            >"Private"</button>
-                            <button type="button"
-                                class=move || if vis.get() == Visibility::Public  { "kind-btn active" } else { "kind-btn" }
-                                on:click=move |_| set_vis.set(Visibility::Public)
-                            >"Public"</button>
+                        <div class=move || if groups_sig.get().is_empty() { "vis-control" } else { "vis-control has-groups" }>
+                            // Button row (desktop, or always when there are no groups)
+                            <div class="kind-picker vis-buttons">
+                                <button type="button"
+                                    class=move || if vis.get() == Visibility::Private { "kind-btn active" } else { "kind-btn" }
+                                    on:click=move |_| set_vis.set(Visibility::Private)
+                                >"Private"</button>
+                                <button type="button"
+                                    class=move || if vis.get() == Visibility::Public  { "kind-btn active" } else { "kind-btn" }
+                                    on:click=move |_| set_vis.set(Visibility::Public)
+                                >"Public"</button>
+                                {move || groups_sig.get().into_iter().map(|g| {
+                                    let gid = g.id;
+                                    view! {
+                                        <button type="button"
+                                            class=move || if vis.get() == Visibility::Group(gid) { "kind-btn active" } else { "kind-btn" }
+                                            on:click=move |_| set_vis.set(Visibility::Group(gid))
+                                        >{g.name}</button>
+                                    }
+                                }).collect_view()}
+                            </div>
+
+                            // Dropdown (mobile, only when there are groups)
+                            {move || (!groups_sig.get().is_empty()).then(|| {
+                                let gs = groups_sig.get();
+                                view! {
+                                    <select
+                                        class="vis-select"
+                                        prop:value=move || match vis.get() {
+                                            Visibility::Private   => "private".to_string(),
+                                            Visibility::Public    => "public".to_string(),
+                                            Visibility::Group(g)  => g.to_string(),
+                                        }
+                                        on:change=move |e| {
+                                            let v = event_target_value(&e);
+                                            let chosen = match v.as_str() {
+                                                "public"  => Visibility::Public,
+                                                "private" => Visibility::Private,
+                                                other     => other.parse()
+                                                    .map(Visibility::Group)
+                                                    .unwrap_or(Visibility::Private),
+                                            };
+                                            set_vis.set(chosen);
+                                        }
+                                    >
+                                        <option value="private">"Private"</option>
+                                        <option value="public">"Public"</option>
+                                        {gs.into_iter().map(|g| {
+                                            let id = g.id.to_string();
+                                            view! { <option value=id>{g.name}</option> }
+                                        }).collect_view()}
+                                    </select>
+                                }
+                            })}
                         </div>
                     </div>
 

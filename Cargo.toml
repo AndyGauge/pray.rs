@@ -15,7 +15,7 @@ authors = ["andygauge@gmail.com"]
 [workspace.dependencies]
 thanksgivings-core = { path = "crates/core" }
 thanksgivings-db   = { path = "crates/db" }
-leptosbook      = { path = "../leptosbook" }
+leptosbook      = "0.1.0"
 
 # Fundamentals
 uuid       = { version = "1",   features = ["v4", "serde", "js"] }

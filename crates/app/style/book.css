@@ -74,7 +74,12 @@ html, body {
 .visibility-tabs {
   display: flex;
   gap: 1.25rem;
+  overflow-x: auto;
+  max-width: 100%;
+  scrollbar-width: none;
 }
+
+.visibility-tabs::-webkit-scrollbar { display: none; }
 
 .visibility-tab {
   background: none;
@@ -87,6 +92,8 @@ html, body {
   padding: 0.2rem 0;
   transition: color 0.2s, border-color 0.2s;
   letter-spacing: 0.05em;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .visibility-tab.active {
@@ -149,6 +156,43 @@ html, body {
   font-style: normal;
   letter-spacing: 0.05em;
 }
+
+/* ── Share to group ───────────────────────────────────────────────────────── */
+
+.share-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-top: 1.5rem;
+  width: 100%;
+}
+
+.share-select {
+  flex: 1;
+  font-family: inherit;
+  font-size: 0.8rem;
+  color: var(--text);
+  background: none;
+  border: 1px solid var(--border, var(--muted));
+  border-radius: 6px;
+  padding: 0.4rem 0.6rem;
+  cursor: pointer;
+}
+
+.share-btn {
+  font-family: inherit;
+  font-size: 0.8rem;
+  color: var(--accent);
+  background: none;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  padding: 0.4rem 0.9rem;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.share-btn:hover { opacity: 0.85; }
+.share-btn:disabled { opacity: 0.4; cursor: default; }
 
 /* ── Empty / loading states ───────────────────────────────────────────────── */
 
@@ -295,6 +339,22 @@ html, body {
   background: var(--accent);
   color: var(--page-bg);
   border-color: var(--accent);
+}
+
+/* Visibility control: button row on desktop, dropdown on mobile when groups exist */
+.vis-buttons { flex-wrap: wrap; }
+
+.vis-select {
+  display: none;
+  width: 100%;
+  font-family: inherit;
+  font-size: 0.9rem;
+  color: var(--text);
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  padding: 0.55rem 0.7rem;
+  cursor: pointer;
 }
 
 .form-actions {
@@ -786,4 +846,8 @@ html, body {
   .page-content  { padding: 2rem 1.5rem; }
   .post-content  { font-size: 1.1rem; }
   .book-header, .book-footer { padding: 0.85rem 1.25rem; }
+
+  /* When the user has groups, swap the visibility buttons for a dropdown */
+  .vis-control.has-groups .vis-buttons { display: none; }
+  .vis-control.has-groups .vis-select  { display: block; }
 }
