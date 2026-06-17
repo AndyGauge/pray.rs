@@ -173,7 +173,11 @@ pub async fn handle_callback(
         .map_err(|e| ServerFnError::new(e.to_string()))?
         .unwrap_or_else(|| "google".to_string());
 
-    let http = reqwest::Client::new();
+    let http = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(10))
+        .connect_timeout(std::time::Duration::from_secs(5))
+        .build()
+        .map_err(|e| ServerFnError::new(e.to_string()))?;
 
     #[derive(Deserialize)]
     struct GoogleProfile { sub: String, email: String, name: String, picture: Option<String> }
@@ -183,12 +187,16 @@ pub async fn handle_callback(
     let (prov_enum, pid, email, name, avatar) = match provider.as_str() {
         "google" => {
             let client = google_client()?;
-            let token = client
-                .exchange_code(AuthorizationCode::new(code))
-                .set_pkce_verifier(PkceCodeVerifier::new(verifier_secret))
-                .request_async(oauth2::reqwest::async_http_client)
-                .await
-                .map_err(|e| ServerFnError::new(e.to_string()))?;
+            let token = tokio::time::timeout(
+                std::time::Duration::from_secs(15),
+                client
+                    .exchange_code(AuthorizationCode::new(code))
+                    .set_pkce_verifier(PkceCodeVerifier::new(verifier_secret))
+                    .request_async(oauth2::reqwest::async_http_client),
+            )
+            .await
+            .map_err(|_| ServerFnError::new("token exchange timed out"))?
+            .map_err(|e| ServerFnError::new(e.to_string()))?;
 
             let profile: GoogleProfile = http
                 .get("https://www.googleapis.com/oauth2/v3/userinfo")
@@ -202,12 +210,16 @@ pub async fn handle_callback(
         }
         "facebook" => {
             let client = facebook_client()?;
-            let token = client
-                .exchange_code(AuthorizationCode::new(code))
-                .set_pkce_verifier(PkceCodeVerifier::new(verifier_secret))
-                .request_async(oauth2::reqwest::async_http_client)
-                .await
-                .map_err(|e| ServerFnError::new(e.to_string()))?;
+            let token = tokio::time::timeout(
+                std::time::Duration::from_secs(15),
+                client
+                    .exchange_code(AuthorizationCode::new(code))
+                    .set_pkce_verifier(PkceCodeVerifier::new(verifier_secret))
+                    .request_async(oauth2::reqwest::async_http_client),
+            )
+            .await
+            .map_err(|_| ServerFnError::new("token exchange timed out"))?
+            .map_err(|e| ServerFnError::new(e.to_string()))?;
 
             let profile: FbProfile = http
                 .get("https://graph.facebook.com/me?fields=id,name,email")

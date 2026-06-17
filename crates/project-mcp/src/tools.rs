@@ -21,11 +21,12 @@ pub fn list_tools() -> Value {
             },
             {
                 "name": "list_features",
-                "description": "List all feature requests.",
+                "description": "List all feature requests. Optionally filter by status and/or priority.",
                 "inputSchema": {
                     "type": "object",
                     "properties": {
-                        "status": { "type": "string", "enum": ["open", "in_progress", "done", "declined"] }
+                        "status":   { "type": "string", "enum": ["open", "in_progress", "done", "declined"] },
+                        "priority": { "type": "string", "enum": ["low", "medium", "high"] }
                     }
                 }
             },
@@ -82,14 +83,16 @@ pub fn call_tool(store: &ProjectStore, name: &str, args: &Value) -> Value {
         "list_features" => {
             match store.list_features() {
                 Ok(features) => {
-                    let filter = args["status"].as_str();
+                    let status_filter   = args["status"].as_str();
+                    let priority_filter = args["priority"].as_str();
                     let filtered: Vec<_> = features.iter().filter(|f| {
-                        filter.map_or(true, |s| f.status.to_string() == s)
+                        status_filter.map_or(true, |s| f.status.to_string() == s)
+                            && priority_filter.map_or(true, |p| f.priority.to_string() == p)
                     }).collect();
                     let text = if filtered.is_empty() {
                         "No features found.".to_string()
                     } else {
-                        filtered.iter().map(|f| format!("[{}] {} — {} ({})", f.status, f.id, f.title, f.description)).collect::<Vec<_>>().join("\n")
+                        filtered.iter().map(|f| format!("[{}] [{}] {} — {} ({})", f.status, f.priority, f.id, f.title, f.description)).collect::<Vec<_>>().join("\n")
                     };
                     tool_text(text)
                 }

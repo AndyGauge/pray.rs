@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "project": {
+      "command": "/Users/andy/thanksgivings/target/debug/project-mcp",
+      "env": { "WORKSPACE_DIR": "/Users/andy/thanksgivings/.workspace" }
+    }
+  }
+}

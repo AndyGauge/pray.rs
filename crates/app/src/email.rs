@@ -44,7 +44,13 @@ pub mod mailer {
             "html":    html,
         });
 
-        let resp = reqwest::Client::new()
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(10))
+            .connect_timeout(std::time::Duration::from_secs(5))
+            .build()
+            .map_err(|e| e.to_string())?;
+
+        let resp = client
             .post("https://api.resend.com/emails")
             .bearer_auth(&api_key)
             .json(&body)

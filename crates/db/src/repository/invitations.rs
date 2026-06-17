@@ -116,23 +116,49 @@ pub async fn accept(
     token: &str,
     user_id: UserId,
 ) -> Result<Option<GroupId>, sqlx::Error> {
-    let inv = match find_by_token(pool, token).await? {
-        Some(i) => i,
-        None    => return Ok(None),
-    };
+    use sqlx::Row;
+    let mut tx = pool.begin().await?;
 
-    sqlx::query("UPDATE invitations SET status = 'accepted' WHERE token = ?")
-        .bind(token).execute(pool).await?;
+    let row = sqlx::query(
+        "SELECT group_id FROM invitations \
+         WHERE token = ? AND status = 'pending' \
+         AND expires_at > strftime('%Y-%m-%dT%H:%M:%SZ', 'now')",
+    )
+    .bind(token)
+    .fetch_optional(&mut *tx)
+    .await?;
+
+    let Some(row) = row else { return Ok(None) };
+    let group_id_str: String = row.try_get("group_id")?;
+
+    // The WHERE status = 'pending' makes this the race gate: whichever concurrent
+    // acceptor writes first wins; the other sees 0 rows_affected and returns None.
+    let updated = sqlx::query(
+        "UPDATE invitations SET status = 'accepted' \
+         WHERE token = ? AND status = 'pending'",
+    )
+    .bind(token)
+    .execute(&mut *tx)
+    .await?;
+
+    if updated.rows_affected() == 0 {
+        return Ok(None);
+    }
 
     let now = OffsetDateTime::now_utc()
-        .format(&time::format_description::well_known::Rfc3339).unwrap();
+        .format(&time::format_description::well_known::Rfc3339)
+        .unwrap();
     sqlx::query(
-        "INSERT OR IGNORE INTO memberships (user_id, group_id, joined_at) VALUES (?, ?, ?)"
+        "INSERT OR IGNORE INTO memberships (user_id, group_id, joined_at) VALUES (?, ?, ?)",
     )
-    .bind(user_id.to_string()).bind(inv.group_id.to_string()).bind(&now)
-    .execute(pool).await?;
+    .bind(user_id.to_string())
+    .bind(&group_id_str)
+    .bind(&now)
+    .execute(&mut *tx)
+    .await?;
 
-    Ok(Some(inv.group_id))
+    tx.commit().await?;
+    Ok(Some(Uuid::parse_str(&group_id_str).unwrap_or_default()))
 }
 
 pub async fn list_pending_for_group(

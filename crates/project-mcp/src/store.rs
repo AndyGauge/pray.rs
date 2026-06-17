@@ -130,6 +130,13 @@ impl std::fmt::Display for FeatureStatus {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum FeaturePriority { Low, Medium, High }
+
+impl std::fmt::Display for FeaturePriority {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = match self { Self::Low => "low", Self::Medium => "medium", Self::High => "high" };
+        write!(f, "{s}")
+    }
+}
