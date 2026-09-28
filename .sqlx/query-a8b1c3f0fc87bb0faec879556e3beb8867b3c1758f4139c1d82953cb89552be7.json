@@ -1,0 +1,68 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT id AS \"id!\", group_id, invited_by, contact, contact_type, token,\n                      status, created_at, expires_at\n               FROM invitations WHERE token = ? AND status = 'pending'\n               AND expires_at > strftime('%Y-%m-%dT%H:%M:%SZ', 'now')",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "group_id",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "invited_by",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "contact",
+        "ordinal": 3,
+        "type_info": "Text"
+      },
+      {
+        "name": "contact_type",
+        "ordinal": 4,
+        "type_info": "Text"
+      },
+      {
+        "name": "token",
+        "ordinal": 5,
+        "type_info": "Text"
+      },
+      {
+        "name": "status",
+        "ordinal": 6,
+        "type_info": "Text"
+      },
+      {
+        "name": "created_at",
+        "ordinal": 7,
+        "type_info": "Text"
+      },
+      {
+        "name": "expires_at",
+        "ordinal": 8,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "a8b1c3f0fc87bb0faec879556e3beb8867b3c1758f4139c1d82953cb89552be7"
+}

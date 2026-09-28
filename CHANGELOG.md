@@ -2,6 +2,65 @@
 
 All notable changes to pray.rs are recorded here. Dates are in `YYYY-MM-DD`.
 
+## 2026-09-27
+
+### Changed
+- **Entries are now a lifecycle, not a fixed kind.** `PostKind { Prayer, Praise }`
+  is replaced by `PostState { Prayer, Thanksgiving, Released }`: a prayer can
+  become a thanksgiving when answered, and either can be released. Entries can
+  still start as a thanksgiving. Released is terminal and hidden from every
+  listing (book tabs and MCP). Transitions are enforced in the `UPDATE` itself
+  (`posts::transition`), so illegal or racing moves match no row.
+- **All SQL is now compile-time checked.** Every repository query moved from
+  runtime `sqlx::query` to the `query!` / `query_as!` macros, verified offline
+  against committed `.sqlx/` metadata (`SQLX_OFFLINE=true` in
+  `.cargo/config.toml`), so builds need no database. `scripts/sqlx-prepare.sh`
+  regenerates the metadata from the migrations; `--check` (run by
+  `deploy/deploy.sh`) refuses to ship stale metadata.
+- A root `Makefile` for the routine commands (`make` lists them): `setup`, `dev`,
+  `check`, `test`, `release`, `sqlx-prepare`, `sqlx-check`, `verify` (everything
+  before a commit or deploy), `deploy`, `project-mcp`. README and CLAUDE.md now
+  point at these targets.
+- Migration `006_post_state` rebuilds `posts` with a `state` column (existing
+  praises → thanksgivings) and drops the unused `prayer_id` link.
+
+### Fixed
+- Typing a note in the answer/release panel no longer turns the page (Space was
+  being read as "next page"). The panel now holds the book on its page with
+  leptosbook's new `use_folio_lock` while it's open, and leptosbook ignores keys
+  and drags aimed at form fields. Requires leptosbook 0.2.0 (bumped from 0.1).
+
+### Added
+- **"Praying now" (+1).** Anyone who can see a prayer (the author, group members,
+  anyone on a public prayer) can tap 🙏 as often as they pray; each press counts
+  and the entry shows "12 prayers from 3 people". Stored per person in
+  `post_prayers` (migration `008`), counted with `ON CONFLICT` upserts. MCP tool
+  `pray_for` (new `pray` capability, granted to signed-in users). Thanksgivings
+  and released entries can't be prayed for.
+- **`PostAction`** in core: every action on an entry (`MoveTo(state)`,
+  `PrayingNow`) with one `allowed(state, viewer)` rule. The UI (`action_ui`) and
+  MCP (`action_tool` + dispatch) match on it exhaustively, so a new action fails
+  to compile until both expose it.
+- Author-only actions (give thanks, release) now appear on your own entries on
+  every book tab, not only "Mine", so shared prayers can be answered too.
+- "Answered — give thanks" and "Release" (with confirm) buttons under your own
+  entries on the Mine tab, backed by a `set_post_state` server fn. Each opens a
+  panel for an optional note ("How was it answered?", "Why are you releasing it?").
+- **Transition log** (migration `007_post_transitions`): every move is recorded
+  with its from/to state, note and time, in the same transaction as the state
+  change. The entry's own text is never rewritten; its history is shown after
+  it, starting with when it was first written ("Prayed · September 27, 2026",
+  or "Gave thanks · …" for an entry written as a thanksgiving), then each move
+  ("Answered · …" and the note).
+- MCP tools `give_thanks` and `release_prayer`, each with an optional `note`;
+  `create_prayer` takes an optional `state` (`prayer` | `thanksgiving`), and
+  listings show each entry's state and history.
+- Compile-time guards for new states: exhaustive matches in the UI (`offer`) and
+  MCP (`transition_tool`) fail to compile until a new `PostState` is handled, and
+  `crates/db/build.rs` fails the build if the migrations' `posts.state` CHECK list
+  differs from `PostState::ALL`. Tests cover new transitions between existing
+  states and that SQLite really enforces the constraint.
+
 ## 2026-06-17
 
 ### Security

@@ -34,7 +34,7 @@ pub fn PrivacyPage() -> impl IntoView {
                 <h2>"What this app is"</h2>
                 <p>
                     "pray.rs is a personal prayer book.
-                    You write prayers and praises; the app keeps them for you."
+                    You write prayers and thanksgivings; the app keeps them for you."
                 </p>
 
                 <h2>"What we collect"</h2>

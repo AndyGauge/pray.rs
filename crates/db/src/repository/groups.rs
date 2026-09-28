@@ -4,7 +4,6 @@ use uuid::Uuid;
 
 use thanksgivings_core::{Group, GroupId, UserId};
 
-#[derive(sqlx::FromRow)]
 struct GroupRow { id: String, name: String, owner_id: String, created_at: String }
 
 impl From<GroupRow> for Group {
@@ -20,13 +19,15 @@ impl From<GroupRow> for Group {
 }
 
 pub async fn list_for_user(pool: &SqlitePool, user_id: UserId) -> Result<Vec<Group>, sqlx::Error> {
+    let uid = user_id.to_string();
     Ok(
-        sqlx::query_as::<_, GroupRow>(
-            "SELECT g.id, g.name, g.owner_id, g.created_at
-             FROM groups g JOIN memberships m ON m.group_id = g.id
-             WHERE m.user_id = ? ORDER BY g.name",
+        sqlx::query_as!(
+            GroupRow,
+            r#"SELECT g.id AS "id!", g.name, g.owner_id, g.created_at
+               FROM groups g JOIN memberships m ON m.group_id = g.id
+               WHERE m.user_id = ? ORDER BY g.name"#,
+            uid,
         )
-        .bind(user_id.to_string())
         .fetch_all(pool)
         .await?
         .into_iter().map(Group::from).collect(),
@@ -39,12 +40,10 @@ pub async fn create(pool: &SqlitePool, name: &str, owner_id: UserId) -> Result<G
     let now = OffsetDateTime::now_utc()
         .format(&time::format_description::well_known::Rfc3339).unwrap();
 
-    sqlx::query("INSERT INTO groups (id, name, owner_id, created_at) VALUES (?, ?, ?, ?)")
-        .bind(&id).bind(name).bind(&uid).bind(&now)
+    sqlx::query!("INSERT INTO groups (id, name, owner_id, created_at) VALUES (?, ?, ?, ?)", id, name, uid, now)
         .execute(pool).await?;
 
-    sqlx::query("INSERT INTO memberships (user_id, group_id, joined_at) VALUES (?, ?, ?)")
-        .bind(&uid).bind(&id).bind(&now)
+    sqlx::query!("INSERT INTO memberships (user_id, group_id, joined_at) VALUES (?, ?, ?)", uid, id, now)
         .execute(pool).await?;
 
     Ok(Group {
@@ -58,18 +57,18 @@ pub async fn create(pool: &SqlitePool, name: &str, owner_id: UserId) -> Result<G
 pub async fn add_member(pool: &SqlitePool, group_id: GroupId, user_id: UserId) -> Result<(), sqlx::Error> {
     let now = OffsetDateTime::now_utc()
         .format(&time::format_description::well_known::Rfc3339).unwrap();
-    sqlx::query("INSERT OR IGNORE INTO memberships (user_id, group_id, joined_at) VALUES (?, ?, ?)")
-        .bind(user_id.to_string()).bind(group_id.to_string()).bind(&now)
+    let (uid, gid) = (user_id.to_string(), group_id.to_string());
+    sqlx::query!("INSERT OR IGNORE INTO memberships (user_id, group_id, joined_at) VALUES (?, ?, ?)", uid, gid, now)
         .execute(pool).await?;
     Ok(())
 }
 
 pub async fn is_member(pool: &SqlitePool, user_id: UserId, group_id: GroupId) -> Result<bool, sqlx::Error> {
-    #[derive(sqlx::FromRow)] struct Count { cnt: i64 }
-    let row = sqlx::query_as::<_, Count>(
-        "SELECT COUNT(*) as cnt FROM memberships WHERE user_id = ? AND group_id = ?",
+    let (uid, gid) = (user_id.to_string(), group_id.to_string());
+    let row = sqlx::query!(
+        "SELECT COUNT(*) AS cnt FROM memberships WHERE user_id = ? AND group_id = ?",
+        uid, gid,
     )
-    .bind(user_id.to_string()).bind(group_id.to_string())
     .fetch_one(pool).await?;
     Ok(row.cnt > 0)
 }

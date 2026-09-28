@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE posts SET visibility = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%SZ','now')\n         WHERE id = ? AND author_id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "44c237cf87d5c5d98e0a48aa7fa49b95923e9d4fa77a4afde14bf80c125c8cf3"
+}

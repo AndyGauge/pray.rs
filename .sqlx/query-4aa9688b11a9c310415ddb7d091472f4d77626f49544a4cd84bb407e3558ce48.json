@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO post_transitions (id, post_id, from_state, to_state, note) VALUES (?, ?, ?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 5
+    },
+    "nullable": []
+  },
+  "hash": "4aa9688b11a9c310415ddb7d091472f4d77626f49544a4cd84bb407e3558ce48"
+}

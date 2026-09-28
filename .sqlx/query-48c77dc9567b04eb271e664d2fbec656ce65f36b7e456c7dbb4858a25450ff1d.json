@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO group_join_tokens (id, group_id, created_by, token, created_at) VALUES (?, ?, ?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 5
+    },
+    "nullable": []
+  },
+  "hash": "48c77dc9567b04eb271e664d2fbec656ce65f36b7e456c7dbb4858a25450ff1d"
+}

@@ -1,0 +1,44 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT client_id, user_id, redirect_uri, code_challenge, scope FROM oauth_auth_codes WHERE code_hash = ? AND used = 0 AND expires_at > strftime('%Y-%m-%dT%H:%M:%SZ', 'now')",
+  "describe": {
+    "columns": [
+      {
+        "name": "client_id",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "user_id",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "redirect_uri",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "code_challenge",
+        "ordinal": 3,
+        "type_info": "Text"
+      },
+      {
+        "name": "scope",
+        "ordinal": 4,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "bd9a1f2a039b2207bd31d5291282f8d17bb9ce4a85a7694597e1f0b1100a803c"
+}

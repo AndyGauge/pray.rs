@@ -7,6 +7,12 @@ DEPLOY_HOST="${1:-root@pray.rs}"
 APP_DIR=/opt/thanksgivings
 SERVICE=thanksgivings
 
+# Run from the repo root so .cargo/config.toml (SQLX_OFFLINE=true) applies.
+cd "$(dirname "$0")/.."
+
+# ── Refuse to ship if the committed sqlx query metadata is stale ─────────────
+scripts/sqlx-prepare.sh --check
+
 # ── Ensure zig toolchain is ready ─────────────────────────────────────────────
 if ! command -v zig &> /dev/null; then
   echo "→ Installing zig via brew..."

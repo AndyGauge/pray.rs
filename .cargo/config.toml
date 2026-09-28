@@ -1,0 +1,6 @@
+[env]
+# Type-check sqlx query!/query_as! macros against the committed .sqlx/ metadata,
+# never a live database — so builds (dev, CI, deploy) don't need DATABASE_URL.
+# Regenerate with scripts/sqlx-prepare.sh. An explicit SQLX_OFFLINE in the
+# environment (as the script sets) still wins.
+SQLX_OFFLINE = "true"

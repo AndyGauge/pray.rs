@@ -21,7 +21,7 @@ pub mod mailer {
             r#"<div style="font-family:Georgia,serif;max-width:520px;margin:0 auto;color:#2c1810">
                 <h2 style="color:#8b4513">{invited_by_name} has invited you to<br>share prayers on {brand}</h2>
                 <p style="color:#9e8a7a">You'll join their group, <strong>{group_name}</strong>.</p>
-                <p>{brand} is a quiet prayer book — a place to write prayers and praises,
+                <p>{brand} is a quiet prayer book — a place to write prayers and thanksgivings,
                    away from the noise of social media.</p>
                 <p style="margin:2rem 0">
                   <a href="{invite_url}"
