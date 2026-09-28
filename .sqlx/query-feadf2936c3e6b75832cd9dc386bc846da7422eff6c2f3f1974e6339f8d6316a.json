@@ -1,0 +1,32 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT author_id, state, visibility FROM posts WHERE id = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "author_id",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "state",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "visibility",
+        "ordinal": 2,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "feadf2936c3e6b75832cd9dc386bc846da7422eff6c2f3f1974e6339f8d6316a"
+}

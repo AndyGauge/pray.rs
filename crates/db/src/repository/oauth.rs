@@ -28,10 +28,10 @@ pub async fn register_client(
     let client_id = format!("mcp_{}", Uuid::new_v4().simple());
     let uris_json = serde_json::to_string(redirect_uris).unwrap_or_else(|_| "[]".into());
 
-    sqlx::query("INSERT INTO oauth_clients (client_id, client_name, redirect_uris) VALUES (?, ?, ?)")
-        .bind(&client_id)
-        .bind(client_name)
-        .bind(&uris_json)
+    sqlx::query!(
+        "INSERT INTO oauth_clients (client_id, client_name, redirect_uris) VALUES (?, ?, ?)",
+        client_id, client_name, uris_json,
+    )
         .execute(pool)
         .await?;
 
@@ -45,18 +45,19 @@ pub async fn register_client(
 pub async fn get_client(pool: &SqlitePool, client_id: &str)
     -> Result<Option<Client>, sqlx::Error>
 {
-    let row = sqlx::query("SELECT client_id, client_name, redirect_uris FROM oauth_clients WHERE client_id = ?")
-        .bind(client_id)
+    let row = sqlx::query!(
+        r#"SELECT client_id AS "client_id!", client_name, redirect_uris
+           FROM oauth_clients WHERE client_id = ?"#,
+        client_id,
+    )
         .fetch_optional(pool)
         .await?;
 
     let Some(row) = row else { return Ok(None) };
-    use sqlx::Row;
-    let uris_json: String = row.try_get("redirect_uris")?;
     Ok(Some(Client {
-        client_id:     row.try_get("client_id")?,
-        client_name:   row.try_get("client_name")?,
-        redirect_uris: serde_json::from_str(&uris_json).unwrap_or_default(),
+        client_id:     row.client_id,
+        client_name:   row.client_name,
+        redirect_uris: serde_json::from_str(&row.redirect_uris).unwrap_or_default(),
     }))
 }
 
@@ -82,19 +83,13 @@ pub async fn create_auth_code(
             .unwrap_or_default()
     );
 
-    sqlx::query(
+    let uid = user_id.to_string();
+    sqlx::query!(
         "INSERT INTO oauth_auth_codes \
          (code_hash, client_id, user_id, redirect_uri, code_challenge, scope, resource, expires_at) \
          VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        code_hash, client_id, uid, redirect_uri, code_challenge, scope, resource, expires_at,
     )
-    .bind(&code_hash)
-    .bind(client_id)
-    .bind(user_id.to_string())
-    .bind(redirect_uri)
-    .bind(code_challenge)
-    .bind(scope)
-    .bind(resource)
-    .bind(&expires_at)
     .execute(pool)
     .await?;
 
@@ -117,32 +112,29 @@ pub async fn consume_auth_code(pool: &SqlitePool, raw_code: &str)
     let code_hash = hash(raw_code);
     let mut tx = pool.begin().await?;
 
-    use sqlx::Row;
-    let row = sqlx::query(
+    let row = sqlx::query!(
         "SELECT client_id, user_id, redirect_uri, code_challenge, scope \
          FROM oauth_auth_codes \
          WHERE code_hash = ? AND used = 0 \
            AND expires_at > strftime('%Y-%m-%dT%H:%M:%SZ', 'now')",
+        code_hash,
     )
-    .bind(&code_hash)
     .fetch_optional(&mut *tx)
     .await?;
 
     let Some(row) = row else { tx.rollback().await?; return Ok(None) };
 
-    sqlx::query("UPDATE oauth_auth_codes SET used = 1 WHERE code_hash = ?")
-        .bind(&code_hash)
+    sqlx::query!("UPDATE oauth_auth_codes SET used = 1 WHERE code_hash = ?", code_hash)
         .execute(&mut *tx)
         .await?;
     tx.commit().await?;
 
-    let uid: String = row.try_get("user_id")?;
     Ok(Some(AuthCode {
-        client_id:      row.try_get("client_id")?,
-        user_id:        Uuid::parse_str(&uid).unwrap_or_default(),
-        redirect_uri:   row.try_get("redirect_uri")?,
-        code_challenge: row.try_get("code_challenge")?,
-        scope:          row.try_get("scope")?,
+        client_id:      row.client_id,
+        user_id:        Uuid::parse_str(&row.user_id).unwrap_or_default(),
+        redirect_uri:   row.redirect_uri,
+        code_challenge: row.code_challenge,
+        scope:          row.scope,
     }))
 }
 
@@ -170,17 +162,13 @@ pub async fn issue_tokens(
             .unwrap_or_default()
     );
 
-    sqlx::query(
+    let (access_hash, refresh_hash, uid) = (hash(&access), hash(&refresh), user_id.to_string());
+    sqlx::query!(
         "INSERT INTO oauth_access_tokens \
          (token_hash, refresh_hash, client_id, user_id, scope, expires_at) \
          VALUES (?, ?, ?, ?, ?, ?)",
+        access_hash, refresh_hash, client_id, uid, scope, expires_at,
     )
-    .bind(hash(&access))
-    .bind(hash(&refresh))
-    .bind(client_id)
-    .bind(user_id.to_string())
-    .bind(scope)
-    .bind(&expires_at)
     .execute(pool)
     .await?;
 
@@ -191,19 +179,18 @@ pub async fn issue_tokens(
 pub async fn authenticate(pool: &SqlitePool, raw_token: &str)
     -> Result<Option<UserId>, sqlx::Error>
 {
-    use sqlx::Row;
-    let row = sqlx::query(
+    let token_hash = hash(raw_token);
+    let row = sqlx::query!(
         "SELECT user_id FROM oauth_access_tokens \
          WHERE token_hash = ? \
            AND expires_at > strftime('%Y-%m-%dT%H:%M:%SZ', 'now')",
+        token_hash,
     )
-    .bind(hash(raw_token))
     .fetch_optional(pool)
     .await?;
 
     let Some(row) = row else { return Ok(None) };
-    let uid: String = row.try_get("user_id")?;
-    Ok(Uuid::parse_str(&uid).ok())
+    Ok(Uuid::parse_str(&row.user_id).ok())
 }
 
 pub struct RefreshContext {
@@ -217,29 +204,26 @@ pub struct RefreshContext {
 pub async fn consume_refresh(pool: &SqlitePool, raw_refresh: &str)
     -> Result<Option<RefreshContext>, sqlx::Error>
 {
-    use sqlx::Row;
     let refresh_hash = hash(raw_refresh);
     let mut tx = pool.begin().await?;
 
-    let row = sqlx::query(
+    let row = sqlx::query!(
         "SELECT client_id, user_id, scope FROM oauth_access_tokens WHERE refresh_hash = ?",
+        refresh_hash,
     )
-    .bind(&refresh_hash)
     .fetch_optional(&mut *tx)
     .await?;
 
     let Some(row) = row else { tx.rollback().await?; return Ok(None) };
 
-    sqlx::query("DELETE FROM oauth_access_tokens WHERE refresh_hash = ?")
-        .bind(&refresh_hash)
+    sqlx::query!("DELETE FROM oauth_access_tokens WHERE refresh_hash = ?", refresh_hash)
         .execute(&mut *tx)
         .await?;
     tx.commit().await?;
 
-    let uid: String = row.try_get("user_id")?;
     Ok(Some(RefreshContext {
-        client_id: row.try_get("client_id")?,
-        user_id:   Uuid::parse_str(&uid).unwrap_or_default(),
-        scope:     row.try_get("scope")?,
+        client_id: row.client_id,
+        user_id:   Uuid::parse_str(&row.user_id).unwrap_or_default(),
+        scope:     row.scope,
     }))
 }

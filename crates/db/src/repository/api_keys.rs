@@ -24,10 +24,10 @@ pub async fn create(pool: &SqlitePool, user_id: UserId, name: &str)
     let hash    = hash_key(&raw);
     let uid_str = user_id.to_string();
 
-    sqlx::query(
+    sqlx::query!(
         "INSERT INTO api_keys (id, user_id, name, key_hash) VALUES (?, ?, ?, ?)",
+        id, uid_str, name, hash,
     )
-    .bind(&id).bind(&uid_str).bind(name).bind(&hash)
     .execute(pool).await?;
 
     Ok((id, raw))
@@ -39,24 +39,21 @@ pub async fn authenticate(pool: &SqlitePool, raw: &str)
 {
     let hash = hash_key(raw);
 
-    let row = sqlx::query(
-        "SELECT id, user_id FROM api_keys WHERE key_hash = ?",
+    let row = sqlx::query!(
+        r#"SELECT id AS "id!", user_id FROM api_keys WHERE key_hash = ?"#,
+        hash,
     )
-    .bind(&hash)
     .fetch_optional(pool).await?;
 
     let Some(row) = row else { return Ok(None) };
 
-    let id:      String = sqlx::Row::try_get(&row, "id")?;
-    let user_id: String = sqlx::Row::try_get(&row, "user_id")?;
-
-    sqlx::query(
+    sqlx::query!(
         "UPDATE api_keys SET last_used_at = strftime('%Y-%m-%dT%H:%M:%SZ','now') WHERE id = ?",
+        row.id,
     )
-    .bind(&id)
     .execute(pool).await?;
 
-    Ok(Uuid::parse_str(&user_id).ok())
+    Ok(Uuid::parse_str(&row.user_id).ok())
 }
 
 /// List all API keys for a user (metadata only — never the raw key).
@@ -64,17 +61,17 @@ pub async fn list(pool: &SqlitePool, user_id: UserId)
     -> Result<Vec<ApiKey>, sqlx::Error>
 {
     let uid_str = user_id.to_string();
-    let rows = sqlx::query(
-        "SELECT id, user_id, name FROM api_keys WHERE user_id = ? ORDER BY created_at DESC",
+    let rows = sqlx::query!(
+        r#"SELECT id AS "id!", user_id, name FROM api_keys WHERE user_id = ? ORDER BY created_at DESC"#,
+        uid_str,
     )
-    .bind(&uid_str)
     .fetch_all(pool).await?;
 
     Ok(rows.into_iter().filter_map(|row| {
         Some(ApiKey {
-            id:      sqlx::Row::try_get(&row, "id").ok()?,
-            user_id: Uuid::parse_str(&sqlx::Row::try_get::<String, _>(&row, "user_id").ok()?).ok()?,
-            name:    sqlx::Row::try_get(&row, "name").ok()?,
+            id:      row.id,
+            user_id: Uuid::parse_str(&row.user_id).ok()?,
+            name:    row.name,
         })
     }).collect())
 }
@@ -84,11 +81,8 @@ pub async fn revoke(pool: &SqlitePool, id: &str, user_id: UserId)
     -> Result<bool, sqlx::Error>
 {
     let uid_str = user_id.to_string();
-    let result = sqlx::query(
-        "DELETE FROM api_keys WHERE id = ? AND user_id = ?",
-    )
-    .bind(id).bind(&uid_str)
-    .execute(pool).await?;
+    let result = sqlx::query!("DELETE FROM api_keys WHERE id = ? AND user_id = ?", id, uid_str)
+        .execute(pool).await?;
 
     Ok(result.rows_affected() > 0)
 }

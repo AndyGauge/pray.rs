@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE invitations SET status = 'accepted' WHERE token = ? AND status = 'pending'",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "cac1337f846f0a989d2b55e54e3e46d036e15d21a45e90d4e5902a1d5766ad4b"
+}

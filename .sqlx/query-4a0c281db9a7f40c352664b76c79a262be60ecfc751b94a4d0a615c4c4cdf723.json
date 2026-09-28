@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT COALESCE(SUM(count), 0) AS \"total!: i64\", COUNT(*) AS \"people!: i64\"\n           FROM post_prayers WHERE post_id = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "total!: i64",
+        "ordinal": 0,
+        "type_info": "Integer"
+      },
+      {
+        "name": "people!: i64",
+        "ordinal": 1,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "4a0c281db9a7f40c352664b76c79a262be60ecfc751b94a4d0a615c4c4cdf723"
+}

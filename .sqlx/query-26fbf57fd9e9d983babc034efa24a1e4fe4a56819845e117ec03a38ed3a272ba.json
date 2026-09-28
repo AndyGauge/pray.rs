@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE posts SET state = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%SZ','now')\n         WHERE id = ? AND author_id = ? AND state = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": []
+  },
+  "hash": "26fbf57fd9e9d983babc034efa24a1e4fe4a56819845e117ec03a38ed3a272ba"
+}

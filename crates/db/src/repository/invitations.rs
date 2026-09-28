@@ -6,7 +6,6 @@ use thanksgivings_core::{
     ContactType, GroupId, Invitation, InvitationStatus, InviteSummary, UserId,
 };
 
-#[derive(sqlx::FromRow)]
 struct InvitationRow {
     id: String, group_id: String, invited_by: String,
     contact: String, contact_type: String, token: String,
@@ -72,12 +71,12 @@ pub async fn create(
     let exp_s = exp.format(fmt).unwrap();
     let ct    = if *contact_type == ContactType::Phone { "phone" } else { "email" };
 
-    sqlx::query(
+    let (gid, by) = (group_id.to_string(), invited_by.to_string());
+    sqlx::query!(
         "INSERT INTO invitations (id, group_id, invited_by, contact, contact_type, token, created_at, expires_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        id, gid, by, contact, ct, token, now_s, exp_s,
     )
-    .bind(&id).bind(group_id.to_string()).bind(invited_by.to_string())
-    .bind(contact).bind(ct).bind(&token).bind(&now_s).bind(&exp_s)
     .execute(pool).await?;
 
     Ok(Invitation {
@@ -98,13 +97,14 @@ pub async fn find_by_token(
     token: &str,
 ) -> Result<Option<Invitation>, sqlx::Error> {
     Ok(
-        sqlx::query_as::<_, InvitationRow>(
-            "SELECT id, group_id, invited_by, contact, contact_type, token,
-                    status, created_at, expires_at
-             FROM invitations WHERE token = ? AND status = 'pending'
-             AND expires_at > strftime('%Y-%m-%dT%H:%M:%SZ', 'now')"
+        sqlx::query_as!(
+            InvitationRow,
+            r#"SELECT id AS "id!", group_id, invited_by, contact, contact_type, token,
+                      status, created_at, expires_at
+               FROM invitations WHERE token = ? AND status = 'pending'
+               AND expires_at > strftime('%Y-%m-%dT%H:%M:%SZ', 'now')"#,
+            token,
         )
-        .bind(token)
         .fetch_optional(pool)
         .await?
         .map(Invitation::from)
@@ -116,28 +116,27 @@ pub async fn accept(
     token: &str,
     user_id: UserId,
 ) -> Result<Option<GroupId>, sqlx::Error> {
-    use sqlx::Row;
     let mut tx = pool.begin().await?;
 
-    let row = sqlx::query(
+    let row = sqlx::query!(
         "SELECT group_id FROM invitations \
          WHERE token = ? AND status = 'pending' \
          AND expires_at > strftime('%Y-%m-%dT%H:%M:%SZ', 'now')",
+        token,
     )
-    .bind(token)
     .fetch_optional(&mut *tx)
     .await?;
 
     let Some(row) = row else { return Ok(None) };
-    let group_id_str: String = row.try_get("group_id")?;
+    let group_id_str = row.group_id;
 
     // The WHERE status = 'pending' makes this the race gate: whichever concurrent
     // acceptor writes first wins; the other sees 0 rows_affected and returns None.
-    let updated = sqlx::query(
+    let updated = sqlx::query!(
         "UPDATE invitations SET status = 'accepted' \
          WHERE token = ? AND status = 'pending'",
+        token,
     )
-    .bind(token)
     .execute(&mut *tx)
     .await?;
 
@@ -148,12 +147,11 @@ pub async fn accept(
     let now = OffsetDateTime::now_utc()
         .format(&time::format_description::well_known::Rfc3339)
         .unwrap();
-    sqlx::query(
+    let uid = user_id.to_string();
+    sqlx::query!(
         "INSERT OR IGNORE INTO memberships (user_id, group_id, joined_at) VALUES (?, ?, ?)",
+        uid, group_id_str, now,
     )
-    .bind(user_id.to_string())
-    .bind(&group_id_str)
-    .bind(&now)
     .execute(&mut *tx)
     .await?;
 
@@ -165,22 +163,18 @@ pub async fn list_pending_for_group(
     pool: &SqlitePool,
     group_id: GroupId,
 ) -> Result<Vec<InviteSummary>, sqlx::Error> {
-    #[derive(sqlx::FromRow)]
-    struct Row {
-        id: String, contact: String, contact_type: String,
-        invited_by_name: String, group_name: String, token: String,
-    }
-    let rows = sqlx::query_as::<_, Row>(
-        "SELECT i.id, i.contact, i.contact_type, u.display_name AS invited_by_name,
-                g.name AS group_name, i.token
-         FROM invitations i
-         JOIN users  u ON u.id = i.invited_by
-         JOIN groups g ON g.id = i.group_id
-         WHERE i.group_id = ? AND i.status = 'pending'
-         AND i.expires_at > strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
-         ORDER BY i.created_at DESC"
+    let gid = group_id.to_string();
+    let rows = sqlx::query!(
+        r#"SELECT i.id AS "id!", i.contact, i.contact_type, u.display_name AS invited_by_name,
+                  g.name AS group_name, i.token
+           FROM invitations i
+           JOIN users  u ON u.id = i.invited_by
+           JOIN groups g ON g.id = i.group_id
+           WHERE i.group_id = ? AND i.status = 'pending'
+           AND i.expires_at > strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
+           ORDER BY i.created_at DESC"#,
+        gid,
     )
-    .bind(group_id.to_string())
     .fetch_all(pool).await?;
 
     Ok(rows.into_iter().map(|r| InviteSummary {

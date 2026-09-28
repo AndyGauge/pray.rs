@@ -1,0 +1,44 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT post_id, from_state, to_state, note, created_at\n         FROM post_transitions\n         WHERE post_id IN (SELECT value FROM json_each(?))\n         ORDER BY created_at, rowid",
+  "describe": {
+    "columns": [
+      {
+        "name": "post_id",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "from_state",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "to_state",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "note",
+        "ordinal": 3,
+        "type_info": "Text"
+      },
+      {
+        "name": "created_at",
+        "ordinal": 4,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      false
+    ]
+  },
+  "hash": "92d0bbbe4f83e7bd5fead8070b252cd1c513194914abcd348ed4623fbedc2e87"
+}

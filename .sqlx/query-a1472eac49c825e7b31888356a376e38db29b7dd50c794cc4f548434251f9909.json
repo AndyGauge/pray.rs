@@ -1,0 +1,32 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT post_id, SUM(count) AS \"total!: i64\", COUNT(*) AS \"people!: i64\"\n           FROM post_prayers\n           WHERE post_id IN (SELECT value FROM json_each(?))\n           GROUP BY post_id",
+  "describe": {
+    "columns": [
+      {
+        "name": "post_id",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "total!: i64",
+        "ordinal": 1,
+        "type_info": "Null"
+      },
+      {
+        "name": "people!: i64",
+        "ordinal": 2,
+        "type_info": "Null"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      null,
+      null
+    ]
+  },
+  "hash": "a1472eac49c825e7b31888356a376e38db29b7dd50c794cc4f548434251f9909"
+}

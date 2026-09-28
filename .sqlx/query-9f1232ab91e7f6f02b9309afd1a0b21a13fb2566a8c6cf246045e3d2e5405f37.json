@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT OR IGNORE INTO memberships (user_id, group_id, joined_at) VALUES (?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "9f1232ab91e7f6f02b9309afd1a0b21a13fb2566a8c6cf246045e3d2e5405f37"
+}

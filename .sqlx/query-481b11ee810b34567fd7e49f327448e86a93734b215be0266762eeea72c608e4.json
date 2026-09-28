@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO post_prayers (post_id, user_id) VALUES (?, ?)\n         ON CONFLICT (post_id, user_id) DO UPDATE SET\n             count          = count + 1,\n             last_prayed_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "481b11ee810b34567fd7e49f327448e86a93734b215be0266762eeea72c608e4"
+}

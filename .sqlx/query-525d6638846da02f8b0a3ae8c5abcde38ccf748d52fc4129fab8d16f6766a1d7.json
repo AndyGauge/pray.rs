@@ -1,0 +1,32 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT client_id AS \"client_id!\", client_name, redirect_uris\n           FROM oauth_clients WHERE client_id = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "client_id!",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "client_name",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "redirect_uris",
+        "ordinal": 2,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      true,
+      true,
+      false
+    ]
+  },
+  "hash": "525d6638846da02f8b0a3ae8c5abcde38ccf748d52fc4129fab8d16f6766a1d7"
+}
