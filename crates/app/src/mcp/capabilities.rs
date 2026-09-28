@@ -18,6 +18,12 @@ impl Capability for WriteOwn {
     const NAME: &'static str = "write_own";
 }
 
+/// Authenticated — "praying now" (+1) on any prayer you can see.
+pub struct Pray;
+impl Capability for Pray {
+    const NAME: &'static str = "pray";
+}
+
 /// Authenticated + group member — read prayers shared to your groups.
 pub struct ReadGroup;
 impl Capability for ReadGroup {

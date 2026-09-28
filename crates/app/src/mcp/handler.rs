@@ -11,7 +11,7 @@ use tower_sessions::Session;
 use super::pagination::Pagination;
 
 use crate::server::AppState;
-use thanksgivings_core::UserId;
+use thanksgivings_core::{PostAction, UserId};
 
 use super::{capabilities::*, tools};
 
@@ -33,7 +33,7 @@ async fn caps_for(user_id: UserId, state: &AppState) -> (Option<UserId>, AuthCon
         &state.db.pool, user_id,
     ).await.map(|g| !g.is_empty()).unwrap_or(false);
 
-    let mut caps = vec![ReadPublic::NAME, ReadOwn::NAME, WriteOwn::NAME, ManageGroups::NAME];
+    let mut caps = vec![ReadPublic::NAME, ReadOwn::NAME, WriteOwn::NAME, ManageGroups::NAME, Pray::NAME];
     if has_groups {
         caps.push(ReadGroup::NAME);
         caps.push(ShareToGroup::NAME);
@@ -132,10 +132,11 @@ fn tools_list(auth: &AuthContext) -> Value {
     if auth.require::<WriteOwn>().is_ok() {
         tools.push(json!({
             "name": "create_prayer",
-            "description": "Write a new prayer entry.",
+            "description": "Write a new entry: a prayer (default) or a thanksgiving.",
             "inputSchema": { "type": "object", "required": ["content"], "properties": {
                 "content":    { "type": "string" },
-                "visibility": { "type": "string", "enum": ["private", "public"], "default": "private" }
+                "visibility": { "type": "string", "enum": ["private", "public"], "default": "private" },
+                "state":      { "type": "string", "enum": ["prayer", "thanksgiving"], "default": "prayer" }
             }}
         }));
         tools.push(json!({
@@ -210,6 +211,33 @@ fn tools_list(auth: &AuthContext) -> Value {
         }));
     }
 
+    // One tool per PostAction (see tools::action_tool), each behind the
+    // capability its action needs. Exhaustive: a new ActionTool kind must be
+    // listed here.
+    for tool in PostAction::all().filter_map(tools::action_tool) {
+        match tool {
+            tools::ActionTool::Move(t) => if auth.require::<WriteOwn>().is_ok() {
+                tools.push(json!({
+                    "name": t.name,
+                    "description": t.description,
+                    "inputSchema": { "type": "object", "required": ["post_id"], "properties": {
+                        "post_id": { "type": "string" },
+                        "note":    { "type": "string", "description": t.note }
+                    }}
+                }));
+            },
+            tools::ActionTool::PrayingNow { name, description } => if auth.require::<Pray>().is_ok() {
+                tools.push(json!({
+                    "name": name,
+                    "description": description,
+                    "inputSchema": { "type": "object", "required": ["post_id"], "properties": {
+                        "post_id": { "type": "string" }
+                    }}
+                }));
+            },
+        }
+    }
+
     json!({ "tools": tools })
 }
 
@@ -257,10 +285,11 @@ pub async fn handle(
                     (Ok(proof), Some(uid)) => {
                         let content = args["content"].as_str().unwrap_or("").to_string();
                         let vis     = args["visibility"].as_str().unwrap_or("private").to_string();
+                        let state   = args["state"].as_str().unwrap_or("prayer").to_string();
                         if content.is_empty() {
                             Ok(json!({ "content": [{ "type": "text", "text": "'content' is required." }], "isError": true }))
                         } else {
-                            Ok(tools::create_prayer(proof, uid, pool, content, vis).await)
+                            Ok(tools::create_prayer(proof, uid, pool, content, vis, state).await)
                         }
                     }
                     _ => Err(NeedsAuth),
@@ -322,6 +351,22 @@ pub async fn handle(
                     }
                     _ => Err(NeedsAuth),
                 },
+                name if tools::action_for_tool(name).is_some() => {
+                    let post_id = args["post_id"].as_str().unwrap_or("").to_string();
+                    match tools::action_for_tool(name).expect("checked by guard") {
+                        PostAction::MoveTo(to) => match (auth.require::<WriteOwn>(), user_id) {
+                            (Ok(proof), Some(uid)) => {
+                                let note = args["note"].as_str().map(str::to_string);
+                                Ok(tools::transition_prayer(proof, uid, pool, post_id, to, note).await)
+                            }
+                            _ => Err(NeedsAuth),
+                        },
+                        PostAction::PrayingNow => match (auth.require::<Pray>(), user_id) {
+                            (Ok(proof), Some(uid)) => Ok(tools::pray_for(proof, uid, pool, post_id).await),
+                            _ => Err(NeedsAuth),
+                        },
+                    }
+                }
                 other => Ok(json!({ "content": [{ "type": "text", "text": format!("Unknown tool: {other}") }], "isError": true })),
             };
 

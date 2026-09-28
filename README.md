@@ -4,7 +4,7 @@
 
 **A quiet prayer book for the web.**
 
-Write prayers and praises, keep them private, share them with a group, or make them
+Write prayers and thanksgivings, keep them private, share them with a group, or make them
 public — read one page at a time, the way you'd turn through a book. No feed, no
 algorithm, no performance.
 
@@ -23,6 +23,11 @@ around a few ideas:
   one at a time. There is no infinite scroll and nothing is ranked.
 - **You choose who sees each prayer.** Every prayer is *private*, shared with a *group*
   you belong to, or *public*.
+- **Prayers become thanksgivings.** When a prayer is answered, mark it so and write how;
+  the original prayer is kept word for word, with the answer recorded after it. Either
+  can be *released* when you're ready to let it go, and it leaves the book.
+- **"Praying now."** Anyone who can see a prayer can tap 🙏 to let its author know
+  they're praying, as often as they pray; the prayer shows the running tally.
 - **Prayer groups.** Invite people by email, text, or a QR/link to pray together.
 - **Bring your own AI.** A built-in [MCP](https://modelcontextprotocol.io) server lets
   you connect an AI assistant (Claude Code, claude.ai, Gemini CLI) to read and write
@@ -81,10 +86,13 @@ cp .env.example .env
 | `RESEND_API_KEY` / `RESEND_FROM` | Outbound invitation email |
 | `DEV_AUTH_BYPASS` | Set to `1` to enable a local dev login that skips real OAuth |
 
+`make setup` installs the prerequisites below and creates `.env` for you. Run `make`
+to list every command.
+
 ### Run it
 
 ```sh
-cargo leptos watch
+make dev
 ```
 
 Then open <http://127.0.0.1:3000>. With `DEV_AUTH_BYPASS=1`, use the dev login to sign
@@ -92,12 +100,14 @@ in without configuring OAuth.
 
 ### Check your work
 
-`cargo check` alone won't catch everything — verify both build targets:
+`cargo check` alone won't catch everything. Before committing or deploying, run:
 
 ```sh
-cargo check -p app --features ssr
-cargo check -p app --features hydrate --target wasm32-unknown-unknown
+make verify   # sqlx metadata up to date, both build targets, tests, release compile
 ```
+
+After changing any SQL query or adding a migration, run `make sqlx-prepare` and commit
+the regenerated `.sqlx/` (queries are checked at compile time, offline).
 
 See [CLAUDE.md](CLAUDE.md) for project conventions and gotchas (notably: prefer
 extracting components over raising `recursion_limit`, and always bind SQL values rather
@@ -116,10 +126,22 @@ Then run `/mcp` in Claude Code, select **prayers**, and **Authenticate** (or
 **Reauthenticate** to move from public prayers to your own account). A static API key is
 also available as an alternative.
 
+Tools the assistant gets (depending on what you've authorized):
+
+| Tool | What it does |
+|------|--------------|
+| `list_public_prayers`, `list_my_prayers`, `list_group_prayers` | Read entries, each with its state, history (answer/release notes) and prayer tally |
+| `create_prayer` | Write a new entry; `state` is `prayer` (default) or `thanksgiving` |
+| `give_thanks` | Mark a prayer answered, with an optional `note` on how |
+| `release_prayer` | Release a prayer or thanksgiving (hides it), with an optional `note` on why |
+| `pray_for` | "Praying now" (+1) on any prayer you can see; every call counts |
+| `edit_prayer`, `delete_prayer`, `set_visibility` | Change the text, delete, or change who can see an entry |
+| `share_to_group`, `list_my_groups`, `create_group`, `invite_to_group` | Groups |
+
 ## Deploying
 
 ```sh
-bash deploy/deploy.sh
+make deploy               # or: make deploy HOST=user@host
 ```
 
 This cross-compiles the Linux server binary with `cargo zigbuild`, builds the optimized

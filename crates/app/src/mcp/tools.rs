@@ -1,7 +1,9 @@
 use mcp_authorization::Proof;
 use serde_json::{json, Value};
 use sqlx::SqlitePool;
-use thanksgivings_core::{ContactType, NewPost, PostKind, UserId, Visibility, VisibilityFilter};
+use thanksgivings_core::{
+    ContactType, NewPost, PostAction, PostState, PrayerCount, UserId, Visibility, VisibilityFilter,
+};
 use uuid::Uuid;
 
 use super::{capabilities::*, pagination::Pagination};
@@ -21,6 +23,31 @@ fn vis_label(v: &Visibility) -> String {
     }
 }
 
+/// An entry's lifecycle log as trailing lines — `→ thanksgiving (<when>): <note>` —
+/// then its prayer tally, if anyone has prayed.
+fn history_text(p: &thanksgivings_core::Post) -> String {
+    let rfc3339 = &time::format_description::well_known::Rfc3339;
+    let mut out: String = p.history.iter().map(|t| {
+        let when = t.at.format(rfc3339).unwrap_or_default();
+        match &t.note {
+            Some(n) => format!("\n→ {} ({when}): {n}", t.to.as_str()),
+            None    => format!("\n→ {} ({when})", t.to.as_str()),
+        }
+    }).collect();
+    if p.prayers.total > 0 {
+        out.push_str(&format!("\n🙏 {}", tally_text(p.prayers)));
+    }
+    out
+}
+
+fn tally_text(c: PrayerCount) -> String {
+    format!(
+        "{} prayer{} from {} {}",
+        c.total, if c.total == 1 { "" } else { "s" },
+        c.people, if c.people == 1 { "person" } else { "people" },
+    )
+}
+
 // ── ReadPublic ────────────────────────────────────────────────────────────────
 
 pub async fn list_public_prayers(
@@ -30,7 +57,7 @@ pub async fn list_public_prayers(
 ) -> Value {
     match thanksgivings_db::repository::posts::list_public(pool).await {
         Ok(posts) => ok(page.render(&posts, "\n\n---\n\n", |p| {
-            format!("[{}] {}\n{}", p.id, p.created_at, p.content)
+            format!("[{}] {} {}\n{}{}", p.id, p.state, p.created_at, p.content, history_text(p))
         })),
         Err(e) => err(e.to_string()),
     }
@@ -46,7 +73,7 @@ pub async fn list_my_prayers(
 ) -> Value {
     match thanksgivings_db::repository::posts::list_all_for_author(pool, user_id).await {
         Ok(posts) => ok(page.render(&posts, "\n\n---\n\n", |p| {
-            format!("[{}] ({}) {}\n{}", p.id, vis_label(&p.visibility), p.created_at, p.content)
+            format!("[{}] {} ({}) {}\n{}{}", p.id, p.state, vis_label(&p.visibility), p.created_at, p.content, history_text(p))
         })),
         Err(e) => err(e.to_string()),
     }
@@ -60,14 +87,19 @@ pub async fn create_prayer(
     pool: &SqlitePool,
     content: String,
     visibility: String,
+    state: String,
 ) -> Value {
     let vis = match visibility.as_str() {
         "public" => Visibility::Public,
         _        => Visibility::Private,
     };
-    let new = NewPost { kind: PostKind::Prayer, content, visibility: vis, prayer_id: None };
+    let state = match PostState::parse(&state) {
+        Some(s) if s.is_initial() => s,
+        _ => return err("state must be 'prayer' or 'thanksgiving'"),
+    };
+    let new = NewPost { state, content, visibility: vis };
     match thanksgivings_db::repository::posts::create(pool, user_id, new).await {
-        Ok(post) => ok(format!("Prayer created: {}", post.id)),
+        Ok(post) => ok(format!("{} created: {}", post.state, post.id)),
         Err(e)   => err(e.to_string()),
     }
 }
@@ -92,6 +124,108 @@ pub async fn set_visibility(
         Ok(true)  => ok(format!("Visibility set to '{vis}'.")),
         Ok(false) => err("Prayer not found or not yours."),
         Err(e)    => err(e.to_string()),
+    }
+}
+
+/// An MCP tool that moves an entry into some state.
+pub struct TransitionTool {
+    pub name:        &'static str,
+    pub description: &'static str,
+    /// Description of the tool's optional `note` argument, which is logged
+    /// with the move and shown after the entry.
+    pub note:        &'static str,
+}
+
+/// The MCP tool that moves an entry into `to`, or `None` if AI clients get no
+/// tool for it. The `match` has no wildcard on purpose: a new `PostState`
+/// won't compile until you decide how MCP exposes it.
+pub fn transition_tool(to: PostState) -> Option<TransitionTool> {
+    match to {
+        // Only a starting state today; nothing moves back into it. If the
+        // machine ever allows that, `every_transition_target_has_a_tool` fails.
+        PostState::Prayer => None,
+        PostState::Thanksgiving => Some(TransitionTool {
+            name:        "give_thanks",
+            description: "Mark one of your prayers as answered, turning it into a thanksgiving. \
+                          The prayer's text is kept; the note is recorded after it.",
+            note:        "Optional: how the prayer was answered.",
+        }),
+        PostState::Released => Some(TransitionTool {
+            name:        "release_prayer",
+            description: "Release one of your prayers or thanksgivings. Released entries are hidden from every listing.",
+            note:        "Optional: why it is being released.",
+        }),
+    }
+}
+
+/// The MCP tool for a `PostAction`.
+pub enum ActionTool {
+    /// A lifecycle move: `post_id` + optional `note`. Needs `WriteOwn`.
+    Move(TransitionTool),
+    /// "Praying now" (+1): `post_id` only. Needs `Pray`.
+    PrayingNow { name: &'static str, description: &'static str },
+}
+
+impl ActionTool {
+    pub fn name(&self) -> &'static str {
+        match self {
+            ActionTool::Move(t)                => t.name,
+            ActionTool::PrayingNow { name, .. } => name,
+        }
+    }
+}
+
+/// How MCP exposes `action`, or `None` if it doesn't. No wildcard on purpose:
+/// a new `PostAction` won't compile until you decide here.
+pub fn action_tool(action: PostAction) -> Option<ActionTool> {
+    match action {
+        PostAction::MoveTo(to) => transition_tool(to).map(ActionTool::Move),
+        PostAction::PrayingNow => Some(ActionTool::PrayingNow {
+            name:        "pray_for",
+            description: "Tell someone you're praying for their prayer right now (+1). Works on any \
+                          prayer you can see — yours, your groups', or public ones — and every call \
+                          counts, so call it each time you pray.",
+        }),
+    }
+}
+
+/// The action an MCP tool performs, looked up by tool name.
+pub fn action_for_tool(name: &str) -> Option<PostAction> {
+    PostAction::all().find(|&a| action_tool(a).is_some_and(|t| t.name() == name))
+}
+
+/// Move a prayer to thanksgiving (answered) or either to released (hidden),
+/// logging the optional note with the move.
+pub async fn transition_prayer(
+    _proof: Proof<WriteOwn>,
+    user_id: UserId,
+    pool: &SqlitePool,
+    post_id: String,
+    to: PostState,
+    note: Option<String>,
+) -> Value {
+    match thanksgivings_db::repository::posts::transition(pool, &post_id, user_id, to, note.as_deref()).await {
+        Ok(true)  => ok(format!("Moved to {}.", to.as_str())),
+        Ok(false) => err(format!(
+            "Not found, not yours, or can't become {} from its current state \
+             (prayer → thanksgiving; prayer/thanksgiving → released).",
+            to.as_str(),
+        )),
+        Err(e)    => err(e.to_string()),
+    }
+}
+
+/// +1 on a prayer the caller can see.
+pub async fn pray_for(
+    _proof: Proof<Pray>,
+    user_id: UserId,
+    pool: &SqlitePool,
+    post_id: String,
+) -> Value {
+    match thanksgivings_db::repository::posts::pray(pool, &post_id, user_id).await {
+        Ok(Some(c)) => ok(format!("Praying. {} so far.", tally_text(c))),
+        Ok(None)    => err("Not found, not visible to you, or not a prayer (only prayers can be prayed for)."),
+        Err(e)      => err(e.to_string()),
     }
 }
 
@@ -148,7 +282,7 @@ pub async fn list_group_prayers(
         pool, user_id, &VisibilityFilter::Group(gid),
     ).await {
         Ok(posts) => ok(page.render(&posts, "\n\n---\n\n", |p| {
-            format!("[{}] {}\n{}", p.id, p.created_at, p.content)
+            format!("[{}] {} {}\n{}{}", p.id, p.state, p.created_at, p.content, history_text(p))
         })),
         Err(e) => err(e.to_string()),
     }
@@ -246,5 +380,44 @@ pub async fn share_to_group(
         Ok(true)  => ok("Prayer shared to group."),
         Ok(false) => err("Prayer not found or not yours."),
         Err(e)    => err(e.to_string()),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn every_transition_target_has_a_tool() {
+        for to in PostState::ALL {
+            let reachable = PostState::ALL.into_iter().any(|from| from.can_transition_to(to));
+            assert_eq!(
+                reachable,
+                transition_tool(to).is_some(),
+                "{to:?}: the state machine and the MCP tools disagree",
+            );
+        }
+    }
+
+    #[test]
+    fn every_allowed_action_has_a_tool() {
+        use thanksgivings_core::Viewer;
+        for action in PostAction::all() {
+            let ever_allowed = PostState::ALL.into_iter().any(|s| {
+                [Viewer::Author, Viewer::Other].into_iter().any(|v| action.allowed(s, v))
+            });
+            if ever_allowed {
+                assert!(action_tool(action).is_some(), "{action:?} has no MCP tool");
+            }
+        }
+    }
+
+    #[test]
+    fn tool_names_round_trip() {
+        for action in PostAction::all() {
+            if let Some(tool) = action_tool(action) {
+                assert_eq!(action_for_tool(tool.name()), Some(action));
+            }
+        }
     }
 }

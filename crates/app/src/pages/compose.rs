@@ -1,6 +1,6 @@
 use leptos::prelude::*;
 use leptos_router::hooks::use_navigate;
-use thanksgivings_core::{Group, NewPost, PostKind, Visibility};
+use thanksgivings_core::{Group, NewPost, PostState, Visibility};
 
 use crate::pages::groups::fetch_my_groups;
 
@@ -23,6 +23,11 @@ pub async fn create_post(new_post: NewPost) -> Result<(), ServerFnError> {
         return Err(ServerFnError::new("Prayer cannot be empty."));
     }
 
+    // Entries start as a prayer or a thanksgiving, never released.
+    if !new_post.state.is_initial() {
+        return Err(ServerFnError::new("New entries must be a prayer or a thanksgiving."));
+    }
+
     // If the post is addressed to a group, the author must belong to it —
     // otherwise a crafted request could inject a post into a group they are
     // not a member of. Mirrors the membership check on the share path.
@@ -43,7 +48,7 @@ pub async fn create_post(new_post: NewPost) -> Result<(), ServerFnError> {
 
 #[component]
 pub fn ComposePage() -> impl IntoView {
-    let (kind, set_kind)       = signal(PostKind::Prayer);
+    let (kind, set_kind)       = signal(PostState::Prayer);
     let (content, set_content) = signal(String::new());
     let (vis, set_vis)         = signal(Visibility::Private);
     let (error, set_error)     = signal(Option::<String>::None);
@@ -72,10 +77,9 @@ pub fn ComposePage() -> impl IntoView {
         let text = content.get_untracked();
         if text.trim().is_empty() { return; }
         submit.dispatch(NewPost {
-            kind:       kind.get_untracked(),
+            state:      kind.get_untracked(),
             content:    text,
             visibility: vis.get_untracked(),
-            prayer_id:  None,
         });
     };
 
@@ -93,16 +97,13 @@ pub fn ComposePage() -> impl IntoView {
                     <div class="form-field">
                         <label>"Entry type"</label>
                         <div class="kind-picker">
-                            <button
-                                type="button"
-                                class=move || if kind.get() == PostKind::Prayer { "kind-btn active" } else { "kind-btn" }
-                                on:click=move |_| set_kind.set(PostKind::Prayer)
-                            >"Prayer"</button>
-                            <button
-                                type="button"
-                                class=move || if kind.get() == PostKind::Praise { "kind-btn active" } else { "kind-btn" }
-                                on:click=move |_| set_kind.set(PostKind::Praise)
-                            >"Praise"</button>
+                            {PostState::ALL.into_iter().filter(|s| s.is_initial()).map(|s| view! {
+                                <button
+                                    type="button"
+                                    class=move || if kind.get() == s { "kind-btn active" } else { "kind-btn" }
+                                    on:click=move |_| set_kind.set(s)
+                                >{s.to_string()}</button>
+                            }).collect_view()}
                         </div>
                     </div>
 
@@ -111,7 +112,7 @@ pub fn ComposePage() -> impl IntoView {
                         <label>"Your words"</label>
                         <textarea
                             rows="8"
-                            placeholder="Write your prayer or praise..."
+                            placeholder="Write your prayer or thanksgiving..."
                             on:input=move |ev| set_content.set(event_target_value(&ev))
                             prop:value=content
                         />

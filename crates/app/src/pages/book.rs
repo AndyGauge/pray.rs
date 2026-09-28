@@ -1,15 +1,15 @@
 use leptos::prelude::*;
 use leptosbook::prelude::*;
 use leptos_router::hooks::use_navigate;
-use thanksgivings_core::{Group, Post, VisibilityFilter};
+use thanksgivings_core::{Group, PostState, PrayerCount, ViewedPost, VisibilityFilter};
 
 use crate::components::{copyright::CopyrightNotice, post_page::PostPage, visibility_picker::VisibilityPicker, wordmark::Wordmark};
 use crate::pages::groups::fetch_my_groups;
 
 #[server]
-pub async fn fetch_posts(filter: VisibilityFilter) -> Result<Vec<Post>, ServerFnError> {
+pub async fn fetch_posts(filter: VisibilityFilter) -> Result<Vec<ViewedPost>, ServerFnError> {
     use crate::server::AppState;
-    use thanksgivings_core::UserId;
+    use thanksgivings_core::{UserId, Viewer};
     use tower_sessions::Session;
 
     let state = use_context::<AppState>()
@@ -25,9 +25,35 @@ pub async fn fetch_posts(filter: VisibilityFilter) -> Result<Vec<Post>, ServerFn
                 &state.db.pool, uid, &filter,
             )
             .await
+            .map(|posts| posts.into_iter().map(|post| {
+                let viewer = if post.author_id == uid { Viewer::Author } else { Viewer::Other };
+                ViewedPost { post, viewer }
+            }).collect())
             .map_err(|e| ServerFnError::new(e.to_string()))
         }
     }
+}
+
+/// "I'm praying for this now" (+1) on any prayer the caller can see. Every
+/// call counts. Returns the new tally. Mirrors the MCP `pray_for` tool.
+#[server]
+pub async fn pray_for(post_id: String) -> Result<PrayerCount, ServerFnError> {
+    use crate::server::AppState;
+    use thanksgivings_core::UserId;
+    use tower_sessions::Session;
+
+    let state = use_context::<AppState>()
+        .ok_or_else(|| ServerFnError::new("missing app state"))?;
+    let session = leptos_axum::extract::<Session>().await
+        .map_err(|e| ServerFnError::new(e.to_string()))?;
+    let uid: UserId = session.get("user_id").await.ok().flatten()
+        .ok_or_else(|| ServerFnError::new("not authenticated"))?;
+
+    // pray() checks the caller can see the post and that its state allows it.
+    thanksgivings_db::repository::posts::pray(&state.db.pool, &post_id, uid)
+        .await
+        .map_err(|e| ServerFnError::new(e.to_string()))?
+        .ok_or_else(|| ServerFnError::new("You can't pray for this entry."))
 }
 
 /// Share one of the caller's own prayers to a group they belong to, making it
@@ -61,6 +87,34 @@ pub async fn share_prayer_to_group(post_id: String, group_id: String) -> Result<
     ).await.map_err(|e| ServerFnError::new(e.to_string()))?;
 
     if shared { Ok(()) } else { Err(ServerFnError::new("Prayer not found or not yours.")) }
+}
+
+/// Move one of the caller's own entries along its lifecycle
+/// (prayer → thanksgiving, either → released), recording an optional note
+/// about the move. Mirrors the MCP `give_thanks` / `release_prayer` tools.
+#[server]
+pub async fn set_post_state(
+    post_id: String,
+    state: PostState,
+    note: Option<String>,
+) -> Result<(), ServerFnError> {
+    use crate::server::AppState;
+    use thanksgivings_core::UserId;
+    use tower_sessions::Session;
+
+    let state_ctx = use_context::<AppState>()
+        .ok_or_else(|| ServerFnError::new("missing app state"))?;
+    let session = leptos_axum::extract::<Session>().await
+        .map_err(|e| ServerFnError::new(e.to_string()))?;
+    let uid: UserId = session.get("user_id").await.ok().flatten()
+        .ok_or_else(|| ServerFnError::new("not authenticated"))?;
+
+    // transition enforces both ownership and the allowed-from states.
+    let moved = thanksgivings_db::repository::posts::transition(
+        &state_ctx.db.pool, &post_id, uid, state, note.as_deref(),
+    ).await.map_err(|e| ServerFnError::new(e.to_string()))?;
+
+    if moved { Ok(()) } else { Err(ServerFnError::new("That change isn't possible for this entry.")) }
 }
 
 #[component]
@@ -107,7 +161,7 @@ pub fn BookPage() -> impl IntoView {
         }
     });
 
-    let items: Signal<Vec<Post>> = Signal::derive(move || {
+    let items: Signal<Vec<ViewedPost>> = Signal::derive(move || {
         posts.get()
             .and_then(|r| r.ok())
             .unwrap_or_default()
@@ -129,8 +183,14 @@ pub fn BookPage() -> impl IntoView {
             // ── leptoskit takes over everything below ──────────────────
             <Folio
                 items=items
-                render=move |post: Post| view! {
-                    <PostPage post=post groups=groups_sig can_share=can_share/>
+                render=move |v: ViewedPost| view! {
+                    <PostPage
+                        post=v.post
+                        viewer=v.viewer
+                        groups=groups_sig
+                        can_share=can_share
+                        on_state_change=Callback::new(move |_| posts.refetch())
+                    />
                 }
                 threshold=60.0
                 empty_fallback=empty_fb
