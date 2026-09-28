@@ -26,9 +26,25 @@ mkdir -p $APP_DIR/data
 chown -R $APP_USER:$APP_USER $APP_DIR
 
 # ── Caddy configuration ───────────────────────────────────────────────────────
+# Mirrors deploy/Caddyfile (see its comments for why /pkg is served this way).
 cat > /etc/caddy/Caddyfile << EOF
 $DOMAIN {
-  reverse_proxy localhost:$APP_PORT
+  log {
+    output file /var/log/caddy/access.log
+    format json
+  }
+
+  encode zstd gzip
+
+  handle /pkg/* {
+    root * $APP_DIR/site
+    header Cache-Control "no-cache"
+    file_server
+  }
+
+  handle {
+    reverse_proxy 127.0.0.1:$APP_PORT
+  }
 }
 EOF
 
