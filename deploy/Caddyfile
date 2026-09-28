@@ -1,11 +1,26 @@
+# /etc/caddy/Caddyfile on the droplet. Keep in sync with deploy/setup.sh.
 pray.rs {
-    # Reverse-proxy everything to the Axum server
-    reverse_proxy 127.0.0.1:3000
+    log {
+        output file /var/log/caddy/access.log
+        format json
+    }
 
-    # Aggressive caching for immutable WASM/JS assets
-    @immutable path /pkg/*
-    header @immutable Cache-Control "public, max-age=31536000, immutable"
+    encode zstd gzip
 
-    # Compress text assets
-    encode gzip
+    # Front-end bundle (WASM/JS/CSS). The file names are the same in every
+    # release, so browsers must revalidate before reusing a cached copy:
+    # `no-cache` = "check first". Caddy's file server sends ETag/Last-Modified
+    # and answers 304 when unchanged, so this costs a tiny request, not a
+    # re-download. Never mark these `immutable`: a stale bundle can't read a
+    # newer server's responses (the book then shows as empty).
+    handle /pkg/* {
+        root * /opt/thanksgivings/site
+        header Cache-Control "no-cache"
+        file_server
+    }
+
+    # Everything else: the Axum/Leptos server.
+    handle {
+        reverse_proxy 127.0.0.1:3000
+    }
 }

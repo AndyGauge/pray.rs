@@ -177,6 +177,16 @@ that would lose its contents on a page turn must also call
 `leptosbook::use_folio_lock(open_signal)` while it's open (see `OfferButton` in
 `components/post_page.rs`). `use_folio_lock` needs leptosbook ≥ 0.2.
 
+### The front-end bundle must be revalidated, never cached as immutable
+
+`/pkg/thanksgivings.js` / `_bg.wasm` / `.css` keep the **same file names every
+release**. If a browser reuses an old bundle after a deploy, it can't read the new
+server's responses (e.g. a changed server-fn return type) and the book silently shows
+as empty ("Begin your prayer book"). So Caddy serves `/pkg/*` itself with
+`Cache-Control: no-cache` + ETag (`deploy/Caddyfile`, mirrored in `deploy/setup.sh`):
+browsers check on every load and get a `304` when nothing changed. Don't mark `/pkg`
+`immutable` or give it a `max-age` unless the file names become content-hashed.
+
 ### `cargo check` passing is NOT enough — release builds compute view-type layout
 
 A change can pass `cargo check` (SSR and WASM) yet **fail the release build** with:

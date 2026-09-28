@@ -2,6 +2,19 @@
 
 All notable changes to pray.rs are recorded here. Dates are in `YYYY-MM-DD`.
 
+## 2026-09-28
+
+### Fixed
+- After a deploy, browsers could keep running the previous front-end bundle (same
+  file names every release, and no `Cache-Control`, so they cached it by guesswork).
+  The old bundle couldn't read the new `fetch_posts` response, so the book showed
+  as empty. Caddy now serves `/pkg/*` directly with `Cache-Control: no-cache` and an
+  ETag: browsers revalidate on every load (`304`, no re-download, when unchanged)
+  and pick up new bundles immediately. The bundle is also compressed (zstd/gzip).
+- `deploy/Caddyfile` previously marked `/pkg/*` `immutable` for a year, which
+  would have made this permanent; it now matches production, and `setup.sh`
+  writes the same config.
+
 ## 2026-09-27
 
 ### Changed
