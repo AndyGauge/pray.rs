@@ -399,6 +399,19 @@ pub fn SettingsPage() -> impl IntoView {
                 // ── How it works ──────────────────────────────────────────
                 <SetupInstructions client=client set_client=set_client os=os set_os=set_os/>
 
+                // ── Account ───────────────────────────────────────────────
+                <div class="settings-section">
+                    <h2 class="settings-heading">"Account"</h2>
+                    <p class="post-meta">
+                        "Signs you out and clears this device's copy of the app, so it reloads fresh."
+                    </p>
+                    // rel="external": a full page load to the server route, not
+                    // client-side routing, so the Clear-Site-Data header applies.
+                    <nav class="settings-links">
+                        <a href="/logout" rel="external" class="settings-link">"Log out"</a>
+                    </nav>
+                </div>
+
                 // ── Legal ─────────────────────────────────────────────────
                 <div class="settings-section">
                     <h2 class="settings-heading">"Legal"</h2>
