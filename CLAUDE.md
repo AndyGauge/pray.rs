@@ -187,6 +187,14 @@ as empty ("Begin your prayer book"). So Caddy serves `/pkg/*` itself with
 browsers check on every load and get a `304` when nothing changed. Don't mark `/pkg`
 `immutable` or give it a `max-age` unless the file names become content-hashed.
 
+Escape hatch for a device already stuck on an old bundle: **`/logout`** (server route
+in `main.rs`, also the Settings "Log out" link) ends the session and sends
+`Clear-Site-Data: "cache", "cookies", "storage"`. It works from any client version.
+On Android, an installed home-screen app shares Chrome's cache, so clearing the app's
+data in Android settings does *not* help; opening `https://pray.rs/logout` in Chrome
+does. Keep links to it `rel="external"` so they're full page loads, not client-side
+routing.
+
 ### `cargo check` passing is NOT enough — release builds compute view-type layout
 
 A change can pass `cargo check` (SSR and WASM) yet **fail the release build** with:

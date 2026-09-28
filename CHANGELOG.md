@@ -4,6 +4,15 @@ All notable changes to pray.rs are recorded here. Dates are in `YYYY-MM-DD`.
 
 ## 2026-09-28
 
+### Added
+- **Log out** (Settings → Account), backed by a `/logout` server route that ends
+  the session and sends `Clear-Site-Data: "cache", "cookies", "storage"`, so the
+  browser drops everything it holds for pray.rs, including a stale app bundle.
+  Because it's a server route, opening https://pray.rs/logout works from any
+  client version, and on Android it also resets the installed home-screen app
+  (which shares Chrome's storage; clearing the app's own data in Android
+  settings doesn't touch it).
+
 ### Fixed
 - After a deploy, browsers could keep running the previous front-end bundle (same
   file names every release, and no `Cache-Control`, so they cached it by guesswork).

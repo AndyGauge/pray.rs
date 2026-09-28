@@ -28,6 +28,55 @@ fn qr_svg(url: &str) -> String {
     )
 }
 
+/// Sign out and wipe everything the browser holds for pray.rs: its HTTP cache
+/// (including the WASM/JS bundle), cookies and storage, via `Clear-Site-Data`.
+///
+/// A plain server route, not a Leptos page, so it works from *any* client
+/// version, including a stale cached bundle that predates the Settings button.
+/// Opening https://pray.rs/logout in the phone's browser also resets an
+/// installed home-screen app, which shares the browser's storage.
+#[cfg(feature = "ssr")]
+async fn logout_handler(session: tower_sessions::Session) -> impl axum::response::IntoResponse {
+    use axum::http::header;
+
+    let _ = session.flush().await;
+    (
+        [
+            (header::HeaderName::from_static("clear-site-data"), r#""cache", "cookies", "storage""#),
+            (header::CACHE_CONTROL, "no-store"),
+            (header::CONTENT_TYPE, "text/html; charset=utf-8"),
+        ],
+        LOGOUT_PAGE,
+    )
+}
+
+/// Shown while the browser clears its data, then sends the user to sign in.
+#[cfg(feature = "ssr")]
+const LOGOUT_PAGE: &str = r##"<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#1a0f08">
+<meta http-equiv="refresh" content="2; url=/login">
+<title>Signed out · prayers</title>
+<style>
+  body { margin: 0; min-height: 100vh; display: grid; place-items: center;
+         background: #fdf8f0; color: #2c1810; text-align: center;
+         font-family: 'Georgia', 'Palatino', 'Times New Roman', serif; }
+  a { color: #8b4513; }
+  p { margin: 0.5rem 1.5rem; }
+</style>
+</head>
+<body>
+  <main>
+    <p>You're signed out, and this device's copy of pray.rs has been cleared.</p>
+    <p><a href="/login">Sign in again</a></p>
+  </main>
+</body>
+</html>
+"##;
+
 #[cfg(feature = "ssr")]
 async fn group_qr_svg_handler(
     axum::extract::Extension(state): axum::extract::Extension<app::server::AppState>,
@@ -113,6 +162,7 @@ async fn main() {
         .route("/authorize", axum::routing::get(oauth_server::authorize))
         .route("/token",     axum::routing::post(oauth_server::token))
         .route("/groups/{id}/qr.svg", axum::routing::get(group_qr_svg_handler))
+        .route("/logout", axum::routing::get(logout_handler))
         .leptos_routes_with_context(
             &leptos_options,
             routes,
