@@ -4,6 +4,21 @@ All notable changes to pray.rs are recorded here. Dates are in `YYYY-MM-DD`.
 
 ## 2026-09-29
 
+### Added
+- **Website** (`website/`, Hugo, published to GitHub Pages by
+  `.github/workflows/website.yml`): a feature walkthrough with generated SVG
+  illustrations of people using pray.rs (joining a group by QR code in person,
+  inviting, sharing, praying now, answered prayers, releasing, bringing your own
+  AI), and the public prayers.
+- The public prayers are fetched from the app **over MCP at build time**
+  (`website/scripts/fetch_public_prayers.py`) and never committed, so a prayer
+  made private leaves the site at the next (daily) build.
+- `list_public_prayers` now also returns MCP `structuredContent`: the page of
+  prayers as JSON (content, state, RFC 3339 dates, history, tally, and
+  `next_offset`), without author ids.
+- `make site-dev`, `make site`, `make site-prayers`, `make site-illustrations`;
+  `make setup` installs Hugo.
+
 ### Changed
 - **One account per provider.** Email is now unique per provider
   (`UNIQUE (provider, email)`) instead of globally, so the same address can sign

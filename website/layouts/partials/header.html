@@ -1,0 +1,9 @@
+<header class="site-header">
+  <a class="wordmark" href="{{ "/" | relURL }}"><img src="{{ "logo.png" | relURL }}" alt="" width="28" height="28">pray.rs</a>
+  <nav>
+    {{- range site.Menus.main }}
+    <a href="{{ .URL }}"{{ if $.IsMenuCurrent "main" . }} aria-current="page"{{ end }}>{{ .Name }}</a>
+    {{- end }}
+    <a class="open-app" href="{{ site.Params.app }}">Open the app</a>
+  </nav>
+</header>

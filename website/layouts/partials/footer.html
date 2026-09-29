@@ -1,0 +1,10 @@
+<footer class="site-footer">
+  <p>
+    <a href="{{ site.Params.app }}">pray.rs</a> ·
+    <a href="{{ site.Params.repo }}">Source on GitHub</a> ·
+    <a href="{{ site.Params.app }}/privacy">Privacy</a>
+  </p>
+  {{- with site.Data.public_prayers }}
+  <p class="fine">Public prayers fetched over MCP from {{ .source }} on {{ time.Format "January 2, 2006" .fetched_at }}.</p>
+  {{- end }}
+</footer>

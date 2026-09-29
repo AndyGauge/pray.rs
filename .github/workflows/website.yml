@@ -1,0 +1,59 @@
+# Build the Hugo site in website/ and publish it to GitHub Pages.
+#
+# The public prayers are fetched from https://pray.rs/mcp over MCP at build
+# time (never committed), so the daily run keeps the collection current and
+# drops anything its author has since made private or released.
+name: Website
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - "website/**"
+      - ".github/workflows/website.yml"
+  schedule:
+    - cron: "17 6 * * *"   # daily refresh of the public prayers
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: peaceiris/actions-hugo@v3
+        with:
+          hugo-version: "0.167.0"
+          extended: true
+
+      - name: Fetch public prayers over MCP
+        run: python3 website/scripts/fetch_public_prayers.py
+
+      - id: pages
+        uses: actions/configure-pages@v5
+
+      - name: Build
+        run: hugo --source website --minify --baseURL "${{ steps.pages.outputs.base_url }}/"
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: website/public
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

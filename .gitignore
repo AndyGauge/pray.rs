@@ -18,3 +18,10 @@ deploy/thanksgivings
 
 # macOS
 .DS_Store
+
+# Website build output, and the public prayers fetched over MCP at build time
+# (never committed: a prayer made private must leave the site at the next build).
+website/public/
+website/resources/
+website/.hugo_build.lock
+website/data/public_prayers.json

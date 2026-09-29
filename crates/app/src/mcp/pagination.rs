@@ -21,6 +21,13 @@ impl Pagination {
         })
     }
 
+    /// This page of `items`, plus the offset of the next page if there is one.
+    pub fn slice<'a, T>(&self, items: &'a [T]) -> (&'a [T], Option<usize>) {
+        let start = self.offset.min(items.len());
+        let end   = (start + self.limit).min(items.len());
+        (&items[start..end], (end < items.len()).then_some(end))
+    }
+
     /// Slice `items`, render each with `f`, join with `sep`, append a pagination footer.
     /// Returns the full formatted string, or a "no results" message.
     pub fn render<T, F>(&self, items: &[T], sep: &str, f: F) -> String

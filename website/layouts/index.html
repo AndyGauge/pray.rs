@@ -1,0 +1,23 @@
+{{ define "main" }}
+<section class="hero">
+  <img src="{{ "illustrations/write.svg" | relURL }}" alt="Someone writing in an open prayer book by candlelight." width="480" height="300">
+  <div>
+    <h1>A prayer book,<br>not a feed.</h1>
+    <p class="lede">Write prayers and thanksgivings. Keep them private, share them with the people you pray with, or with everyone, and pray for one another.</p>
+    <p class="actions">
+      <a class="button" href="{{ site.Params.app }}">Start your prayer book</a>
+      <a class="button button--quiet" href="{{ "walkthrough/" | relURL }}">See how it works</a>
+    </p>
+  </div>
+</section>
+{{ .Content }}
+{{- with site.Data.public_prayers }}{{ with .prayers }}
+<section class="recent">
+  <h2>Prayed in public, recently</h2>
+  <div class="prayer-list">
+    {{- range first 3 . }}{{ partial "prayer.html" . }}{{ end }}
+  </div>
+  <p><a href="{{ "prayers/" | relURL }}">All public prayers →</a></p>
+</section>
+{{- end }}{{ end }}
+{{ end }}
