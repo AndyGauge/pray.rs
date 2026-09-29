@@ -5,7 +5,7 @@ HOST ?= root@pray.rs
 LINUX_TARGET := x86_64-unknown-linux-gnu
 
 .DEFAULT_GOAL := help
-.PHONY: help setup dev check check-ssr check-wasm test release sqlx-prepare sqlx-check verify deploy project-mcp site-prayers site site-dev site-illustrations
+.PHONY: help setup dev check check-ssr check-wasm test release sqlx-prepare sqlx-check verify deploy project-mcp site-prayers site site-dev site-illustrations site-render
 
 help: ## List available commands
 	@grep -E '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "} {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}'
@@ -68,6 +68,9 @@ site-prayers: ## Fetch the public prayers over MCP for the site (MCP_URL=… to 
 
 site-illustrations: ## Regenerate the walkthrough's SVG illustrations
 	python3 website/illustrations/draw.py
+
+site-render: site-illustrations ## Render the illustrations to PNGs + a contact sheet (headless Chrome)
+	python3 website/illustrations/render.py
 
 site: site-prayers ## Build the website into website/public
 	hugo --source website --minify
