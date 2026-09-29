@@ -25,3 +25,6 @@ website/public/
 website/resources/
 website/.hugo_build.lock
 website/data/public_prayers.json
+
+# PNG renders of the illustrations, for checking them by eye (make site-render).
+website/illustrations/renders/

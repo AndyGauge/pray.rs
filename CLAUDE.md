@@ -40,6 +40,7 @@ All common commands are `make` targets (`make` lists them). Run from the repo ro
 | `make project-mcp` | Build the stdio `project-mcp` server that `.mcp.json` points at |
 | `make site-dev` / `make site` | Website: fetch public prayers over MCP, then serve / build (`website/`) |
 | `make site-illustrations` | Regenerate the walkthrough's SVG illustrations |
+| `make site-render` | Regenerate the illustrations, then render them to PNGs + a contact sheet to check by eye |
 
 - `make check` passing is **not** enough for UI changes; use `make verify` (it includes
   the release compile).
@@ -61,6 +62,9 @@ A static site published to GitHub Pages by `.github/workflows/website.yml` (on p
   If you change that tool's output, keep `structuredContent` in step and author-free.
 - **Illustrations are generated**, not hand-edited: `website/illustrations/draw.py` has a
   posable `person()` and shared props; edit a scene there and run `make site-illustrations`.
+  Then run `make site-render` (headless Chrome → `website/illustrations/renders/`, gitignored) and
+  look at the PNGs: check that props rest on their surfaces and hands meet what they hold. Place
+  things from a surface's y (`GROUND`, `TABLE_TOP`) and use `near_reach`/`far_reach`, not coordinates chosen by eye.
   Keep the walkthrough (`website/content/walkthrough.md`) in step with app features.
 - `make site-dev` (fetch + live server), `make site` (fetch + build). `MCP_URL=…` points
   the fetch elsewhere (e.g. a local server). Links in content use `relref`, since Pages
