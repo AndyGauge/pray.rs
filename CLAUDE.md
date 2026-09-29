@@ -72,6 +72,34 @@ so a wrong column, table, parameter count or result type is a **compile error**.
 - Runtime `sqlx::query(...)` is only for tests that deliberately send invalid data
   (`crates/db/tests/post_state_schema.rs`).
 
+## Server functions: `#[authed]`
+
+A server function that needs a signed-in user takes it from **`#[authed]`**
+(`crates/macros`), placed directly **above** `#[server]`:
+
+```rust
+#[authed(user, pool)]
+#[server]
+pub async fn fetch_posts(filter: VisibilityFilter) -> Result<Vec<ViewedPost>, ServerFnError> {
+    posts::list_for_viewer(&pool, user, &filter).await …
+}
+```
+
+- Bindings: `user` (`UserId`), `pool` (`SqlitePool`), `session` (`Session`), `state`
+  (`AppState`), or `ctx` (the whole `Authed`, the default with no arguments). Bind only
+  what the body uses. Call the user `user`, not `uid`.
+- It expands to one line calling `crate::server::extract_authed()`, which uses the
+  **`Authed` Axum extractor** (`crates/app/src/server.rs`). The same type works as an
+  argument in plain Axum handlers. Signed out → `"not authenticated"` (the book
+  redirects to `/login` on exactly that message).
+- The macro reports misuse at compile time: unknown or duplicate bindings, a binding
+  that shadows a parameter, a non-`async fn`, or not sitting directly above `#[server]`.
+- Don't hand-write the `use_context::<AppState>()` / `Session` / `"user_id"` preamble.
+  Only the login flows (`dev_login`, `login_url`, `handle_callback`) touch the session
+  directly.
+- "Author vs other" is `Viewer::of(&post, user)` / `ViewedPost::new(post, user)` in
+  core. Don't compare `author_id` inline.
+
 ## Post lifecycle (state machine)
 
 Entries are a `PostState` (`crates/core/src/lib.rs`), not a fixed kind:

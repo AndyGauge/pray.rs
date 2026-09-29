@@ -4,6 +4,17 @@ All notable changes to pray.rs are recorded here. Dates are in `YYYY-MM-DD`.
 
 ## 2026-09-28
 
+### Changed
+- **`#[authed]`** (new `crates/macros`): server functions declare the signed-in
+  context they need (`#[authed(user, pool)]`, `session`, `state`, or `ctx`)
+  instead of repeating the AppState/Session/`user_id` preamble; 17 functions
+  converted. Built on an `Authed` Axum extractor (`server.rs`), with compile
+  errors for unknown/duplicate bindings, shadowed parameters, non-async
+  functions, and wrong placement relative to `#[server]`. No behaviour change:
+  signed-out calls still fail with "not authenticated".
+- `Viewer::of` / `ViewedPost::new` in core are the single "author vs other"
+  rule; `fetch_posts` uses them instead of an inline comparison.
+
 ### Added
 - **Log out** (Settings → Account), backed by a `/logout` server route that ends
   the session and sends `Clear-Site-Data: "cache", "cookies", "storage"`, so the

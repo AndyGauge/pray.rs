@@ -39,6 +39,7 @@ ssr = [
 
 [dependencies]
 thanksgivings-core = { workspace = true }
+thanksgivings-macros = { workspace = true }
 leptosbook      = { workspace = true }
 leptos       = { workspace = true }
 leptos_meta  = { workspace = true }

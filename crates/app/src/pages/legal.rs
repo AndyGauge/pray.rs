@@ -1,20 +1,11 @@
 use leptos::prelude::*;
+use thanksgivings_macros::authed;
 use leptos_router::{components::A, hooks::use_query_map, NavigateOptions};
 
+#[authed(user, pool, session)]
 #[server(DeleteMyAccount, "/api")]
 pub async fn delete_my_account() -> Result<(), ServerFnError> {
-    use crate::server::AppState;
-    use thanksgivings_core::UserId;
-    use tower_sessions::Session;
-
-    let state = use_context::<AppState>()
-        .ok_or_else(|| ServerFnError::new("missing app state"))?;
-    let session = leptos_axum::extract::<Session>().await
-        .map_err(|e| ServerFnError::new(e.to_string()))?;
-    let user_id: Option<UserId> = session.get("user_id").await.ok().flatten();
-    let uid = user_id.ok_or_else(|| ServerFnError::new("not authenticated"))?;
-
-    thanksgivings_db::repository::users::delete_account(&state.db.pool, uid)
+    thanksgivings_db::repository::users::delete_account(&pool, user)
         .await
         .map_err(|e| ServerFnError::new(e.to_string()))?;
 

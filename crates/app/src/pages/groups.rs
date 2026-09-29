@@ -1,47 +1,31 @@
 use leptos::prelude::*;
+use thanksgivings_macros::authed;
 use leptos_router::{components::A, hooks::{use_navigate, use_params_map}};
 use thanksgivings_core::{ContactType, Group, GroupId, InviteSummary};
 
 // ─── Server functions ─────────────────────────────────────────────────────────
 
+#[authed(user, pool)]
 #[server]
 pub async fn fetch_my_groups() -> Result<Vec<Group>, ServerFnError> {
-    use crate::server::AppState;
-    use thanksgivings_core::UserId;
-    use tower_sessions::Session;
-    let state   = use_context::<AppState>().ok_or_else(|| ServerFnError::new("no state"))?;
-    let session = leptos_axum::extract::<Session>().await.map_err(|e| ServerFnError::new(e.to_string()))?;
-    let uid: UserId = session.get("user_id").await.ok().flatten()
-        .ok_or_else(|| ServerFnError::new("not authenticated"))?;
-    thanksgivings_db::repository::groups::list_for_user(&state.db.pool, uid)
+    thanksgivings_db::repository::groups::list_for_user(&pool, user)
         .await.map_err(|e| ServerFnError::new(e.to_string()))
 }
 
+#[authed(user, pool)]
 #[server]
 pub async fn create_group(name: String) -> Result<Group, ServerFnError> {
-    use crate::server::AppState;
-    use thanksgivings_core::UserId;
-    use tower_sessions::Session;
-    let state   = use_context::<AppState>().ok_or_else(|| ServerFnError::new("no state"))?;
-    let session = leptos_axum::extract::<Session>().await.map_err(|e| ServerFnError::new(e.to_string()))?;
-    let uid: UserId = session.get("user_id").await.ok().flatten()
-        .ok_or_else(|| ServerFnError::new("not authenticated"))?;
     let name = name.trim().to_string();
     if name.is_empty() { return Err(ServerFnError::new("name required")); }
-    thanksgivings_db::repository::groups::create(&state.db.pool, &name, uid)
+    thanksgivings_db::repository::groups::create(&pool, &name, user)
         .await.map_err(|e| ServerFnError::new(e.to_string()))
 }
 
+#[authed(user, pool)]
 #[server]
 pub async fn send_invite(group_id: String, contact: String) -> Result<String, ServerFnError> {
-    use crate::{email::mailer, server::AppState};
-    use thanksgivings_core::{GroupId, UserId};
-    use tower_sessions::Session;
-
-    let state   = use_context::<AppState>().ok_or_else(|| ServerFnError::new("no state"))?;
-    let session = leptos_axum::extract::<Session>().await.map_err(|e| ServerFnError::new(e.to_string()))?;
-    let uid: UserId = session.get("user_id").await.ok().flatten()
-        .ok_or_else(|| ServerFnError::new("not authenticated"))?;
+    use crate::email::mailer;
+    use thanksgivings_core::GroupId;
 
     let gid: GroupId = group_id.parse().map_err(|_| ServerFnError::new("invalid group"))?;
     let contact = contact.trim().to_string();
@@ -56,16 +40,16 @@ pub async fn send_invite(group_id: String, contact: String) -> Result<String, Se
         if !valid { return Err(ServerFnError::new("Please enter a valid email address.")); }
     }
 
-    let groups = thanksgivings_db::repository::groups::list_for_user(&state.db.pool, uid)
+    let groups = thanksgivings_db::repository::groups::list_for_user(&pool, user)
         .await.map_err(|e| ServerFnError::new(e.to_string()))?;
     let group = groups.iter().find(|g| g.id == gid)
         .ok_or_else(|| ServerFnError::new("group not found or not a member"))?;
-    let inviter = thanksgivings_db::repository::users::fetch_by_id(&state.db.pool, uid)
+    let inviter = thanksgivings_db::repository::users::fetch_by_id(&pool, user)
         .await.map_err(|e| ServerFnError::new(e.to_string()))?
         .ok_or_else(|| ServerFnError::new("user not found"))?;
 
     let inv = thanksgivings_db::repository::invitations::create(
-        &state.db.pool, gid, uid, &contact, &contact_type,
+        &pool, gid, user, &contact, &contact_type,
     ).await.map_err(|e| ServerFnError::new(e.to_string()))?;
 
     let base_url = std::env::var("BASE_URL").unwrap_or_else(|_| "https://pray.rs".to_string());
@@ -87,44 +71,32 @@ pub async fn send_invite(group_id: String, contact: String) -> Result<String, Se
     }
 }
 
+#[authed(user, pool)]
 #[server]
 pub async fn accept_invite(token: String) -> Result<String, ServerFnError> {
-    use crate::server::AppState;
-    use thanksgivings_core::UserId;
-    use tower_sessions::Session;
-    let state   = use_context::<AppState>().ok_or_else(|| ServerFnError::new("no state"))?;
-    let session = leptos_axum::extract::<Session>().await.map_err(|e| ServerFnError::new(e.to_string()))?;
-    let uid: UserId = session.get("user_id").await.ok().flatten()
-        .ok_or_else(|| ServerFnError::new("not authenticated"))?;
-    thanksgivings_db::repository::invitations::accept(&state.db.pool, &token, uid)
+    thanksgivings_db::repository::invitations::accept(&pool, &token, user)
         .await.map_err(|e| ServerFnError::new(e.to_string()))?
         .map(|gid| gid.to_string())
         .ok_or_else(|| ServerFnError::new("invitation not found or already used"))
 }
 
+#[authed(user, pool)]
 #[server]
 pub async fn get_group_join_token(group_id: String) -> Result<(String, String), ServerFnError> {
-    use crate::server::AppState;
-    use thanksgivings_core::{GroupId, UserId};
-    use tower_sessions::Session;
-
-    let state   = use_context::<AppState>().ok_or_else(|| ServerFnError::new("no state"))?;
-    let session = leptos_axum::extract::<Session>().await.map_err(|e| ServerFnError::new(e.to_string()))?;
-    let uid: UserId = session.get("user_id").await.ok().flatten()
-        .ok_or_else(|| ServerFnError::new("not authenticated"))?;
+    use thanksgivings_core::GroupId;
 
     let gid: GroupId = group_id.parse().map_err(|_| ServerFnError::new("invalid group"))?;
 
-    let groups = thanksgivings_db::repository::groups::list_for_user(&state.db.pool, uid)
+    let groups = thanksgivings_db::repository::groups::list_for_user(&pool, user)
         .await.map_err(|e| ServerFnError::new(e.to_string()))?;
     if !groups.iter().any(|g| g.id == gid) {
         return Err(ServerFnError::new("not a member"));
     }
 
-    let token = match thanksgivings_db::repository::group_join_tokens::get_for_group(&state.db.pool, gid)
+    let token = match thanksgivings_db::repository::group_join_tokens::get_for_group(&pool, gid)
         .await.map_err(|e| ServerFnError::new(e.to_string()))? {
         Some(t) => t,
-        None    => thanksgivings_db::repository::group_join_tokens::create_or_replace(&state.db.pool, gid, uid)
+        None    => thanksgivings_db::repository::group_join_tokens::create_or_replace(&pool, gid, user)
             .await.map_err(|e| ServerFnError::new(e.to_string()))?,
     };
 
@@ -133,26 +105,20 @@ pub async fn get_group_join_token(group_id: String) -> Result<(String, String), 
     Ok((token, join_url))
 }
 
+#[authed(user, pool)]
 #[server]
 pub async fn regenerate_group_join_token(group_id: String) -> Result<(String, String), ServerFnError> {
-    use crate::server::AppState;
-    use thanksgivings_core::{GroupId, UserId};
-    use tower_sessions::Session;
-
-    let state   = use_context::<AppState>().ok_or_else(|| ServerFnError::new("no state"))?;
-    let session = leptos_axum::extract::<Session>().await.map_err(|e| ServerFnError::new(e.to_string()))?;
-    let uid: UserId = session.get("user_id").await.ok().flatten()
-        .ok_or_else(|| ServerFnError::new("not authenticated"))?;
+    use thanksgivings_core::GroupId;
 
     let gid: GroupId = group_id.parse().map_err(|_| ServerFnError::new("invalid group"))?;
 
-    let groups = thanksgivings_db::repository::groups::list_for_user(&state.db.pool, uid)
+    let groups = thanksgivings_db::repository::groups::list_for_user(&pool, user)
         .await.map_err(|e| ServerFnError::new(e.to_string()))?;
     if !groups.iter().any(|g| g.id == gid) {
         return Err(ServerFnError::new("not a member"));
     }
 
-    let token = thanksgivings_db::repository::group_join_tokens::create_or_replace(&state.db.pool, gid, uid)
+    let token = thanksgivings_db::repository::group_join_tokens::create_or_replace(&pool, gid, user)
         .await.map_err(|e| ServerFnError::new(e.to_string()))?;
 
     let base_url = std::env::var("BASE_URL").unwrap_or_else(|_| "https://pray.rs".to_string());
@@ -160,38 +126,25 @@ pub async fn regenerate_group_join_token(group_id: String) -> Result<(String, St
     Ok((token, join_url))
 }
 
+#[authed(user, pool)]
 #[server]
 pub async fn join_by_token(token: String) -> Result<(), ServerFnError> {
-    use crate::server::AppState;
-    use thanksgivings_core::UserId;
-    use tower_sessions::Session;
-
-    let state   = use_context::<AppState>().ok_or_else(|| ServerFnError::new("no state"))?;
-    let session = leptos_axum::extract::<Session>().await.map_err(|e| ServerFnError::new(e.to_string()))?;
-    let uid: UserId = session.get("user_id").await.ok().flatten()
-        .ok_or_else(|| ServerFnError::new("not authenticated"))?;
-
-    let gid = thanksgivings_db::repository::group_join_tokens::find_group(&state.db.pool, &token)
+    let gid = thanksgivings_db::repository::group_join_tokens::find_group(&pool, &token)
         .await.map_err(|e| ServerFnError::new(e.to_string()))?
         .ok_or_else(|| ServerFnError::new("invalid or expired join link"))?;
 
-    thanksgivings_db::repository::groups::add_member(&state.db.pool, gid, uid)
+    thanksgivings_db::repository::groups::add_member(&pool, gid, user)
         .await.map_err(|e| ServerFnError::new(e.to_string()))?;
 
     Ok(())
 }
 
+#[authed(pool)]
 #[server]
 pub async fn fetch_pending_invites(group_id: String) -> Result<Vec<InviteSummary>, ServerFnError> {
-    use crate::server::AppState;
-    use thanksgivings_core::{GroupId, UserId};
-    use tower_sessions::Session;
-    let state   = use_context::<AppState>().ok_or_else(|| ServerFnError::new("no state"))?;
-    let session = leptos_axum::extract::<Session>().await.map_err(|e| ServerFnError::new(e.to_string()))?;
-    let _uid: UserId = session.get("user_id").await.ok().flatten()
-        .ok_or_else(|| ServerFnError::new("not authenticated"))?;
+    use thanksgivings_core::GroupId;
     let gid: GroupId = group_id.parse().map_err(|_| ServerFnError::new("invalid group"))?;
-    thanksgivings_db::repository::invitations::list_pending_for_group(&state.db.pool, gid)
+    thanksgivings_db::repository::invitations::list_pending_for_group(&pool, gid)
         .await.map_err(|e| ServerFnError::new(e.to_string()))
 }
 
