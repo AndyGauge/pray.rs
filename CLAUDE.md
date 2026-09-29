@@ -205,6 +205,26 @@ that would lose its contents on a page turn must also call
 `leptosbook::use_folio_lock(open_signal)` while it's open (see `OfferButton` in
 `components/post_page.rs`). `use_folio_lock` needs leptosbook ≥ 0.2.
 
+### Rebuilding a table in a migration can cascade-delete everything
+
+SQLite changes a constraint only by rebuilding the table (create new, copy, drop
+old, rename). Most tables reference `users`/`posts`/`groups` with `ON DELETE CASCADE`,
+so **dropping the old table with foreign keys on deletes every row that references
+it.** (Rehearsed: migration 009 without its guard, run with foreign keys on, took
+production's 18 posts to 0.)
+
+- `Db::open` (`crates/db/src/lib.rs`) runs all migrations on one connection with
+  `PRAGMA foreign_keys = OFF`, then fails startup if `PRAGMA foreign_key_check` finds
+  anything dangling, and discards that connection. The pragma has to be set there:
+  SQLite ignores it inside a transaction, and sqlx-sqlite wraps every migration in one
+  (it **ignores** `-- no-transaction`).
+- Start any rebuild migration with the guard from `009_users_email_per_provider.sql`,
+  which makes the migration fail if foreign keys are on:
+  `CREATE TEMP TABLE _fk_off_guard (foreign_keys INTEGER CHECK (foreign_keys = 0));`
+  `INSERT INTO _fk_off_guard SELECT foreign_keys FROM pragma_foreign_keys;`
+- Rehearse on a copy of production (`.backup`) and compare row counts in every table
+  before deploying.
+
 ### The front-end bundle must be revalidated, never cached as immutable
 
 `/pkg/thanksgivings.js` / `_bg.wasm` / `.css` keep the **same file names every

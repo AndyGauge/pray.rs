@@ -2,6 +2,21 @@
 
 All notable changes to pray.rs are recorded here. Dates are in `YYYY-MM-DD`.
 
+## 2026-09-29
+
+### Changed
+- **One account per provider.** Email is now unique per provider
+  (`UNIQUE (provider, email)`) instead of globally, so the same address can sign
+  in with Google and with Facebook as two separate accounts. Previously signing
+  in with a second provider failed with a 500 (`UNIQUE constraint failed:
+  users.email`). Migration `009` rebuilds `users`.
+
+### Fixed
+- Migrations now run with foreign keys off, then check for dangling
+  references before startup continues. Table rebuilds would otherwise
+  cascade-delete every row referencing the rebuilt table. Rebuild migrations
+  carry a guard that aborts if foreign keys are on.
+
 ## 2026-09-28
 
 ### Changed
