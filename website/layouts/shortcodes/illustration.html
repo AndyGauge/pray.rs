@@ -1,0 +1,5 @@
+{{- /* {{< illustration "qr-join" "Alt text describing the scene." >}} */ -}}
+{{- $name := .Get 0 -}}
+<figure class="illustration">
+  <img src="{{ printf "illustrations/%s.svg" $name | relURL }}" alt="{{ .Get 1 }}" width="480" height="300" loading="lazy">
+</figure>

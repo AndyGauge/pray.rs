@@ -56,11 +56,44 @@ pub async fn list_public_prayers(
     page: Pagination,
 ) -> Value {
     match thanksgivings_db::repository::posts::list_public(pool).await {
-        Ok(posts) => ok(page.render(&posts, "\n\n---\n\n", |p| {
-            format!("[{}] {} {}\n{}{}", p.id, p.state, p.created_at, p.content, history_text(p))
-        })),
+        Ok(posts) => {
+            let mut result = ok(page.render(&posts, "\n\n---\n\n", |p| {
+                format!("[{}] {} {}\n{}{}", p.id, p.state, p.created_at, p.content, history_text(p))
+            }));
+            // The same page as JSON (MCP `structuredContent`), for programs such as
+            // the website build. Deliberately no author ids: a public collection
+            // shouldn't let readers link prayers to one person.
+            let (items, next_offset) = page.slice(&posts);
+            result["structuredContent"] = json!({
+                "prayers": items.iter().map(public_prayer_json).collect::<Vec<_>>(),
+                "total": posts.len(),
+                "next_offset": next_offset,
+            });
+            result
+        }
         Err(e) => err(e.to_string()),
     }
+}
+
+/// A public prayer for machine consumers: content, state, dates (RFC 3339),
+/// lifecycle history with notes, and the prayer tally. No author id.
+fn public_prayer_json(p: &thanksgivings_core::Post) -> Value {
+    let rfc3339 = |t: &time::OffsetDateTime| {
+        t.format(&time::format_description::well_known::Rfc3339).unwrap_or_default()
+    };
+    json!({
+        "id": p.id,
+        "state": p.state.as_str(),
+        "content": p.content,
+        "created_at": rfc3339(&p.created_at),
+        "history": p.history.iter().map(|t| json!({
+            "from": t.from.as_str(),
+            "to": t.to.as_str(),
+            "note": t.note,
+            "at": rfc3339(&t.at),
+        })).collect::<Vec<_>>(),
+        "prayers": { "total": p.prayers.total, "people": p.prayers.people },
+    })
 }
 
 // ── ReadOwn ───────────────────────────────────────────────────────────────────

@@ -33,6 +33,13 @@ around a few ideas:
   you connect an AI assistant (Claude Code, claude.ai, Gemini CLI) to read and write
   your prayers on your behalf — authenticated as you, scoped to what you allow.
 
+## Website
+
+[andygauge.github.io/pray.rs](https://andygauge.github.io/pray.rs/) walks through every
+feature (with illustrations of people doing them) and shows the public prayers, fetched
+from the app over MCP each time the site builds. Source in [`website/`](website/):
+`make site-dev` to work on it locally.
+
 ## Tech stack
 
 | Concern        | Choice |

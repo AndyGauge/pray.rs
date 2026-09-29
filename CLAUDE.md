@@ -38,12 +38,33 @@ All common commands are `make` targets (`make` lists them). Run from the repo ro
 | `make verify` | `sqlx-check` + `check` + `test` + `release` — run before committing or deploying |
 | `make deploy` | `deploy/deploy.sh` to the droplet (`HOST=user@host` to override). See the `infra` skill |
 | `make project-mcp` | Build the stdio `project-mcp` server that `.mcp.json` points at |
+| `make site-dev` / `make site` | Website: fetch public prayers over MCP, then serve / build (`website/`) |
+| `make site-illustrations` | Regenerate the walkthrough's SVG illustrations |
 
 - `make check` passing is **not** enough for UI changes; use `make verify` (it includes
   the release compile).
 - `DEV_AUTH_BYPASS=1` (in `.env`) enables a dev login that skips real OAuth.
 - When adding a new routine command, add a Makefile target (with a `## description`
   so it shows in `make help`) rather than documenting a raw command here.
+
+## Website (`website/`, Hugo)
+
+A static site published to GitHub Pages by `.github/workflows/website.yml` (on push to
+`website/**`, daily, and on demand): a feature walkthrough plus the **public prayers**.
+
+- **Prayers come from the app over MCP at build time**: `website/scripts/fetch_public_prayers.py`
+  does the MCP handshake against `https://pray.rs/mcp` as an anonymous client and pages
+  through `list_public_prayers`' **`structuredContent`** (JSON: content, state, RFC 3339
+  dates, history with notes, prayer tally, **no author ids**). Output goes to
+  `website/data/public_prayers.json`, which is **gitignored on purpose**: a prayer made
+  private or released must leave the site at the next build, not live on in git history.
+  If you change that tool's output, keep `structuredContent` in step and author-free.
+- **Illustrations are generated**, not hand-edited: `website/illustrations/draw.py` has a
+  posable `person()` and shared props; edit a scene there and run `make site-illustrations`.
+  Keep the walkthrough (`website/content/walkthrough.md`) in step with app features.
+- `make site-dev` (fetch + live server), `make site` (fetch + build). `MCP_URL=…` points
+  the fetch elsewhere (e.g. a local server). Links in content use `relref`, since Pages
+  serves the site under `/pray.rs/`.
 
 ## Database queries (compile-time checked)
 

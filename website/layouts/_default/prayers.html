@@ -1,0 +1,16 @@
+{{ define "main" }}
+<article class="page">
+  <h1>{{ .Title }}</h1>
+  {{ .Content }}
+  {{- with site.Data.public_prayers }}
+    {{- with .prayers }}
+    <div class="prayer-list">{{ range . }}{{ partial "prayer.html" . }}{{ end }}</div>
+    {{- else }}
+    <p class="empty">No one has shared a public prayer yet.</p>
+    {{- end }}
+  {{- else }}
+  <p class="empty">The prayer collection wasn't fetched for this build. Run
+  <code>make site-prayers</code> (or <code>python3 website/scripts/fetch_public_prayers.py</code>) first.</p>
+  {{- end }}
+</article>
+{{ end }}

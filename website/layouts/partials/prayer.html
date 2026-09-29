@@ -1,0 +1,18 @@
+{{- /* One public prayer: its words, its history, its prayer tally. */ -}}
+{{- $p := . -}}
+<article class="prayer prayer--{{ $p.state }}">
+  <p class="prayer-kind">{{ if eq $p.state "thanksgiving" }}Thanksgiving{{ else }}Prayer{{ end }}</p>
+  <blockquote class="prayer-content">{{ $p.content }}</blockquote>
+  <ul class="prayer-history">
+    <li><span class="meta">{{ if and (eq $p.state "thanksgiving") (not $p.history) }}Gave thanks{{ else }}Prayed{{ end }} · {{ time.Format "January 2, 2006" $p.created_at }}</span></li>
+    {{- range $p.history }}
+    <li>
+      <span class="meta">{{ if eq .to "thanksgiving" }}Answered{{ else if eq .to "released" }}Released{{ else }}Returned to prayer{{ end }} · {{ time.Format "January 2, 2006" .at }}</span>
+      {{- with .note }}<p class="note">{{ . }}</p>{{ end }}
+    </li>
+    {{- end }}
+    {{- with $p.prayers }}{{ if gt .total 0 }}
+    <li><span class="meta">🙏 {{ .total }} {{ cond (eq .total 1) "prayer" "prayers" }} from {{ .people }} {{ cond (eq .people 1) "person" "people" }}</span></li>
+    {{- end }}{{ end }}
+  </ul>
+</article>

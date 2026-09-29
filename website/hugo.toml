@@ -1,0 +1,30 @@
+# pray.rs website: feature walkthrough + the public prayers, fetched over MCP
+# at build time (scripts/fetch_public_prayers.py). CI overrides baseURL with
+# the GitHub Pages URL.
+baseURL = "https://andygauge.github.io/pray.rs/"
+languageCode = "en-us"
+title = "pray.rs"
+disableKinds = ["taxonomy", "term", "RSS"]
+enableRobotsTXT = true
+
+[params]
+description = "A quiet prayer book: write prayers, share them privately, with a group, or publicly. A book, not a feed."
+app = "https://pray.rs"
+repo = "https://github.com/AndyGauge/pray.rs"
+
+[menus]
+  [[menus.main]]
+    name = "Walkthrough"
+    pageRef = "/walkthrough"
+    weight = 10
+  [[menus.main]]
+    name = "Public prayers"
+    pageRef = "/prayers"
+    weight = 20
+
+[markup.goldmark.renderer]
+unsafe = false
+
+# Plain code blocks styled by site.css (no inline dark theme).
+[markup.highlight]
+noClasses = false
