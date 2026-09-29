@@ -1,60 +1,34 @@
 use leptos::prelude::*;
+use thanksgivings_macros::authed;
 use leptos_router::components::A;
 
 // ── Server functions ──────────────────────────────────────────────────────────
 
+#[authed(user, pool)]
 #[server]
 pub async fn list_api_keys() -> Result<Vec<(String, String)>, ServerFnError> {
-    use crate::server::AppState;
-    use thanksgivings_core::UserId;
-    use tower_sessions::Session;
-
-    let state   = use_context::<AppState>().ok_or_else(|| ServerFnError::new("no state"))?;
-    let session = leptos_axum::extract::<Session>().await
-        .map_err(|e| ServerFnError::new(e.to_string()))?;
-    let uid: UserId = session.get("user_id").await.ok().flatten()
-        .ok_or_else(|| ServerFnError::new("not authenticated"))?;
-
-    let keys = thanksgivings_db::repository::api_keys::list(&state.db.pool, uid)
+    let keys = thanksgivings_db::repository::api_keys::list(&pool, user)
         .await.map_err(|e| ServerFnError::new(e.to_string()))?;
 
     Ok(keys.into_iter().map(|k| (k.id, k.name)).collect())
 }
 
+#[authed(user, pool)]
 #[server]
 pub async fn create_api_key(name: String) -> Result<String, ServerFnError> {
-    use crate::server::AppState;
-    use thanksgivings_core::UserId;
-    use tower_sessions::Session;
-
-    let state   = use_context::<AppState>().ok_or_else(|| ServerFnError::new("no state"))?;
-    let session = leptos_axum::extract::<Session>().await
-        .map_err(|e| ServerFnError::new(e.to_string()))?;
-    let uid: UserId = session.get("user_id").await.ok().flatten()
-        .ok_or_else(|| ServerFnError::new("not authenticated"))?;
-
     let name = name.trim().to_string();
     if name.is_empty() { return Err(ServerFnError::new("name required")); }
 
-    let (_id, raw) = thanksgivings_db::repository::api_keys::create(&state.db.pool, uid, &name)
+    let (_id, raw) = thanksgivings_db::repository::api_keys::create(&pool, user, &name)
         .await.map_err(|e| ServerFnError::new(e.to_string()))?;
 
     Ok(raw)
 }
 
+#[authed(user, pool)]
 #[server]
 pub async fn revoke_api_key(id: String) -> Result<(), ServerFnError> {
-    use crate::server::AppState;
-    use thanksgivings_core::UserId;
-    use tower_sessions::Session;
-
-    let state   = use_context::<AppState>().ok_or_else(|| ServerFnError::new("no state"))?;
-    let session = leptos_axum::extract::<Session>().await
-        .map_err(|e| ServerFnError::new(e.to_string()))?;
-    let uid: UserId = session.get("user_id").await.ok().flatten()
-        .ok_or_else(|| ServerFnError::new("not authenticated"))?;
-
-    thanksgivings_db::repository::api_keys::revoke(&state.db.pool, &id, uid)
+    thanksgivings_db::repository::api_keys::revoke(&pool, &id, user)
         .await.map_err(|e| ServerFnError::new(e.to_string()))?;
 
     Ok(())

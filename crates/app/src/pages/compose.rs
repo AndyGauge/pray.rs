@@ -1,23 +1,13 @@
 use leptos::prelude::*;
+use thanksgivings_macros::authed;
 use leptos_router::hooks::use_navigate;
 use thanksgivings_core::{Group, NewPost, PostState, Visibility};
 
 use crate::pages::groups::fetch_my_groups;
 
+#[authed(user, pool)]
 #[server]
 pub async fn create_post(new_post: NewPost) -> Result<(), ServerFnError> {
-    use crate::server::AppState;
-    use thanksgivings_core::UserId;
-    use tower_sessions::Session;
-
-    let state = use_context::<AppState>()
-        .ok_or_else(|| ServerFnError::new("missing app state"))?;
-    let session = leptos_axum::extract::<Session>().await
-        .map_err(|e| ServerFnError::new(e.to_string()))?;
-
-    let user_id: Option<UserId> = session.get("user_id").await.ok().flatten();
-    let uid = user_id.ok_or_else(|| ServerFnError::new("not authenticated"))?;
-
     // Never trust the client: reject empty content (the UI checks too).
     if new_post.content.trim().is_empty() {
         return Err(ServerFnError::new("Prayer cannot be empty."));
@@ -32,14 +22,14 @@ pub async fn create_post(new_post: NewPost) -> Result<(), ServerFnError> {
     // otherwise a crafted request could inject a post into a group they are
     // not a member of. Mirrors the membership check on the share path.
     if let Visibility::Group(gid) = new_post.visibility {
-        let groups = thanksgivings_db::repository::groups::list_for_user(&state.db.pool, uid)
+        let groups = thanksgivings_db::repository::groups::list_for_user(&pool, user)
             .await.map_err(|e| ServerFnError::new(e.to_string()))?;
         if !groups.iter().any(|g| g.id == gid) {
             return Err(ServerFnError::new("You are not a member of that group."));
         }
     }
 
-    thanksgivings_db::repository::posts::create(&state.db.pool, uid, new_post)
+    thanksgivings_db::repository::posts::create(&pool, user, new_post)
         .await
         .map_err(|e| ServerFnError::new(e.to_string()))?;
 

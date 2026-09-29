@@ -1,56 +1,28 @@
 use leptos::prelude::*;
 use leptosbook::prelude::*;
 use leptos_router::hooks::use_navigate;
+use thanksgivings_macros::authed;
 use thanksgivings_core::{Group, PostState, PrayerCount, ViewedPost, VisibilityFilter};
 
 use crate::components::{copyright::CopyrightNotice, post_page::PostPage, visibility_picker::VisibilityPicker, wordmark::Wordmark};
 use crate::pages::groups::fetch_my_groups;
 
+#[authed(user, pool)]
 #[server]
 pub async fn fetch_posts(filter: VisibilityFilter) -> Result<Vec<ViewedPost>, ServerFnError> {
-    use crate::server::AppState;
-    use thanksgivings_core::{UserId, Viewer};
-    use tower_sessions::Session;
-
-    let state = use_context::<AppState>()
-        .ok_or_else(|| ServerFnError::new("missing app state"))?;
-    let session = leptos_axum::extract::<Session>().await
-        .map_err(|e| ServerFnError::new(e.to_string()))?;
-    let user_id: Option<UserId> = session.get("user_id").await.ok().flatten();
-
-    match user_id {
-        None      => Err(ServerFnError::new("not authenticated")),
-        Some(uid) => {
-            thanksgivings_db::repository::posts::list_for_viewer(
-                &state.db.pool, uid, &filter,
-            )
-            .await
-            .map(|posts| posts.into_iter().map(|post| {
-                let viewer = if post.author_id == uid { Viewer::Author } else { Viewer::Other };
-                ViewedPost { post, viewer }
-            }).collect())
-            .map_err(|e| ServerFnError::new(e.to_string()))
-        }
-    }
+    thanksgivings_db::repository::posts::list_for_viewer(&pool, user, &filter)
+        .await
+        .map(|posts| posts.into_iter().map(|post| ViewedPost::new(post, user)).collect())
+        .map_err(|e| ServerFnError::new(e.to_string()))
 }
 
 /// "I'm praying for this now" (+1) on any prayer the caller can see. Every
 /// call counts. Returns the new tally. Mirrors the MCP `pray_for` tool.
+#[authed(user, pool)]
 #[server]
 pub async fn pray_for(post_id: String) -> Result<PrayerCount, ServerFnError> {
-    use crate::server::AppState;
-    use thanksgivings_core::UserId;
-    use tower_sessions::Session;
-
-    let state = use_context::<AppState>()
-        .ok_or_else(|| ServerFnError::new("missing app state"))?;
-    let session = leptos_axum::extract::<Session>().await
-        .map_err(|e| ServerFnError::new(e.to_string()))?;
-    let uid: UserId = session.get("user_id").await.ok().flatten()
-        .ok_or_else(|| ServerFnError::new("not authenticated"))?;
-
     // pray() checks the caller can see the post and that its state allows it.
-    thanksgivings_db::repository::posts::pray(&state.db.pool, &post_id, uid)
+    thanksgivings_db::repository::posts::pray(&pool, &post_id, user)
         .await
         .map_err(|e| ServerFnError::new(e.to_string()))?
         .ok_or_else(|| ServerFnError::new("You can't pray for this entry."))
@@ -58,24 +30,16 @@ pub async fn pray_for(post_id: String) -> Result<PrayerCount, ServerFnError> {
 
 /// Share one of the caller's own prayers to a group they belong to, making it
 /// visible to other group members. Mirrors the MCP `share_to_group` tool.
+#[authed(user, pool)]
 #[server]
 pub async fn share_prayer_to_group(post_id: String, group_id: String) -> Result<(), ServerFnError> {
-    use crate::server::AppState;
-    use thanksgivings_core::{GroupId, UserId};
-    use tower_sessions::Session;
-
-    let state = use_context::<AppState>()
-        .ok_or_else(|| ServerFnError::new("missing app state"))?;
-    let session = leptos_axum::extract::<Session>().await
-        .map_err(|e| ServerFnError::new(e.to_string()))?;
-    let uid: UserId = session.get("user_id").await.ok().flatten()
-        .ok_or_else(|| ServerFnError::new("not authenticated"))?;
+    use thanksgivings_core::GroupId;
 
     let gid: GroupId = group_id.parse()
         .map_err(|_| ServerFnError::new("invalid group"))?;
 
     // Only members of the target group may share into it.
-    let groups = thanksgivings_db::repository::groups::list_for_user(&state.db.pool, uid)
+    let groups = thanksgivings_db::repository::groups::list_for_user(&pool, user)
         .await.map_err(|e| ServerFnError::new(e.to_string()))?;
     if !groups.iter().any(|g| g.id == gid) {
         return Err(ServerFnError::new("You are not a member of that group."));
@@ -83,7 +47,7 @@ pub async fn share_prayer_to_group(post_id: String, group_id: String) -> Result<
 
     // set_visibility enforces author ownership at the DB level.
     let shared = thanksgivings_db::repository::posts::set_visibility(
-        &state.db.pool, &post_id, uid, &group_id,
+        &pool, &post_id, user, &group_id,
     ).await.map_err(|e| ServerFnError::new(e.to_string()))?;
 
     if shared { Ok(()) } else { Err(ServerFnError::new("Prayer not found or not yours.")) }
@@ -92,26 +56,16 @@ pub async fn share_prayer_to_group(post_id: String, group_id: String) -> Result<
 /// Move one of the caller's own entries along its lifecycle
 /// (prayer → thanksgiving, either → released), recording an optional note
 /// about the move. Mirrors the MCP `give_thanks` / `release_prayer` tools.
+#[authed(user, pool)]
 #[server]
 pub async fn set_post_state(
     post_id: String,
     state: PostState,
     note: Option<String>,
 ) -> Result<(), ServerFnError> {
-    use crate::server::AppState;
-    use thanksgivings_core::UserId;
-    use tower_sessions::Session;
-
-    let state_ctx = use_context::<AppState>()
-        .ok_or_else(|| ServerFnError::new("missing app state"))?;
-    let session = leptos_axum::extract::<Session>().await
-        .map_err(|e| ServerFnError::new(e.to_string()))?;
-    let uid: UserId = session.get("user_id").await.ok().flatten()
-        .ok_or_else(|| ServerFnError::new("not authenticated"))?;
-
     // transition enforces both ownership and the allowed-from states.
     let moved = thanksgivings_db::repository::posts::transition(
-        &state_ctx.db.pool, &post_id, uid, state, note.as_deref(),
+        &pool, &post_id, user, state, note.as_deref(),
     ).await.map_err(|e| ServerFnError::new(e.to_string()))?;
 
     if moved { Ok(()) } else { Err(ServerFnError::new("That change isn't possible for this entry.")) }

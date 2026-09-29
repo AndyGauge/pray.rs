@@ -187,11 +187,27 @@ impl PostAction {
     }
 }
 
+impl Viewer {
+    /// How `user` relates to `post`. The one definition of "author" vs "other";
+    /// whether `user` may see the post at all is checked separately (by the
+    /// query that loaded it, or `posts::visible_to`).
+    pub fn of(post: &Post, user: UserId) -> Viewer {
+        if post.author_id == user { Viewer::Author } else { Viewer::Other }
+    }
+}
+
 /// A post as seen by a particular person, so the UI knows which actions to offer.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ViewedPost {
     pub post: Post,
     pub viewer: Viewer,
+}
+
+impl ViewedPost {
+    pub fn new(post: Post, user: UserId) -> Self {
+        let viewer = Viewer::of(&post, user);
+        ViewedPost { post, viewer }
+    }
 }
 
 /// One recorded lifecycle move, with the author's optional note about it
@@ -298,4 +314,26 @@ pub struct InviteSummary {
     pub invited_by_name: String,
     pub group_name: String,
     pub token: String,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn post_by(author: UserId) -> Post {
+        Post {
+            id: Uuid::new_v4(), author_id: author, state: PostState::Prayer,
+            content: String::new(), visibility: Visibility::Private,
+            created_at: OffsetDateTime::UNIX_EPOCH, updated_at: OffsetDateTime::UNIX_EPOCH,
+            history: vec![], prayers: PrayerCount::default(),
+        }
+    }
+
+    #[test]
+    fn viewer_of_is_author_only_for_the_author() {
+        let (me, you) = (Uuid::new_v4(), Uuid::new_v4());
+        assert_eq!(Viewer::of(&post_by(me), me), Viewer::Author);
+        assert_eq!(Viewer::of(&post_by(me), you), Viewer::Other);
+        assert_eq!(ViewedPost::new(post_by(me), you).viewer, Viewer::Other);
+    }
 }

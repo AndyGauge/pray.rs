@@ -4,6 +4,7 @@ members = [
     "crates/db",
     "crates/app",
     "crates/project-mcp",
+    "crates/macros",
 ]
 resolver = "2"
 
@@ -15,6 +16,7 @@ authors = ["andygauge@gmail.com"]
 [workspace.dependencies]
 thanksgivings-core = { path = "crates/core" }
 thanksgivings-db   = { path = "crates/db" }
+thanksgivings-macros = { path = "crates/macros" }
 leptosbook      = "0.2.0"
 
 # Fundamentals

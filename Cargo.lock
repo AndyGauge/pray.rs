@@ -64,6 +64,7 @@ dependencies = [
  "sqlx",
  "thanksgivings-core",
  "thanksgivings-db",
+ "thanksgivings-macros",
  "thiserror 2.0.18",
  "time",
  "tokio",
@@ -3473,6 +3474,15 @@ dependencies = [
  "time",
  "tokio",
  "uuid",
+]
+
+[[package]]
+name = "thanksgivings-macros"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]
